@@ -121,6 +121,7 @@ export type Database = {
           notes: string | null
           payment_method: string
           payment_proof: string | null
+          processing_started_at: string | null
           product_id: string
           product_name: string
           profit: number | null
@@ -128,6 +129,7 @@ export type Database = {
           selling_price: number
           source: string
           status: string
+          telegram_chat_id: string | null
           total_amount: number | null
           total_cost: number | null
           updated_at: string
@@ -143,6 +145,7 @@ export type Database = {
           notes?: string | null
           payment_method: string
           payment_proof?: string | null
+          processing_started_at?: string | null
           product_id: string
           product_name: string
           profit?: number | null
@@ -150,6 +153,7 @@ export type Database = {
           selling_price: number
           source: string
           status?: string
+          telegram_chat_id?: string | null
           total_amount?: number | null
           total_cost?: number | null
           updated_at?: string
@@ -165,6 +169,7 @@ export type Database = {
           notes?: string | null
           payment_method?: string
           payment_proof?: string | null
+          processing_started_at?: string | null
           product_id?: string
           product_name?: string
           profit?: number | null
@@ -172,6 +177,7 @@ export type Database = {
           selling_price?: number
           source?: string
           status?: string
+          telegram_chat_id?: string | null
           total_amount?: number | null
           total_cost?: number | null
           updated_at?: string
