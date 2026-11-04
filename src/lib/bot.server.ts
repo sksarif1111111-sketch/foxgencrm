@@ -51,6 +51,15 @@ async function saveState(db: Admin, tgId: string, state: BotState) {
   await db.from("bot_sessions").upsert({ telegram_id: tgId, state, updated_at: new Date().toISOString() });
 }
 
+/** Status notes must never block the work that follows them. */
+async function safeSend(chatId: number | string, text: string, keyboard?: InlineKeyboard) {
+  try {
+    await sendMessage(chatId, text, keyboard);
+  } catch (e) {
+    logger.warn("status message failed", { error: errorMessage(e) });
+  }
+}
+
 const mainMenu: InlineKeyboard = [
   [{ text: "🛍 Browse Products", callback_data: "browse" }],
   [{ text: "📦 My Orders", callback_data: "my_orders" }],
@@ -283,10 +292,10 @@ async function submitProof(db: Admin, chatId: number, user: TgUser, text: string
   await saveState(db, tgId, state);
 
   if (settingBool(s, "auto_deliver")) {
-    await sendMessage(chatId, "⏳ Payment proof received. Processing your order…");
+    await safeSend(chatId, "⏳ Payment proof received. Processing your order…");
     await fulfillOrder(db, order.id);
   } else {
-    await sendMessage(chatId, "⏳ Payment proof received! We're verifying your payment — your accounts will arrive here shortly.");
+    await safeSend(chatId, "⏳ Payment proof received! We're verifying your payment — your accounts will arrive here shortly.");
     await alertOwner(
       db,
       `🛒 <b>New order to verify</b>\n${esc(p.name)} × ${qty} — ${esc(total)}\nCustomer: ${esc(displayName(user))}${user.username ? " @" + esc(user.username) : ""}\nMethod: ${PAYMENT_METHOD_LABELS[method]}\nProof: <code>${esc(proof)}</code>\nRef: <code>${esc(order.external_order_id)}</code>`,
@@ -327,12 +336,12 @@ async function handleOwnerDecision(db: Admin, chatId: number, user: TgUser, data
   const [kind, orderId] = data.split(":");
   if (!orderId || !/^[0-9a-f-]{36}$/i.test(orderId)) return;
   if (kind === "ok") {
-    await sendMessage(chatId, "⏳ Delivering…");
+    await safeSend(chatId, "⏳ Delivering…");
     const r = await fulfillOrder(db, orderId);
-    await sendMessage(chatId, r.ok ? `✅ Delivered ${r.accounts.length} account(s).` : `❗ Not delivered: ${esc(r.reason)}`);
+    await safeSend(chatId, r.ok ? `✅ Delivered ${r.accounts.length} account(s).` : `❗ Not delivered: ${esc(r.reason)}`);
   } else {
     const ok = await rejectOrder(db, orderId, "Payment rejected by owner");
-    await sendMessage(chatId, ok ? "Order rejected and customer notified." : "Order was already handled.");
+    await safeSend(chatId, ok ? "Order rejected and customer notified." : "Order was already handled.");
   }
 }
 

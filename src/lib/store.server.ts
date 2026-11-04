@@ -171,11 +171,16 @@ export async function fulfillOrder(db: Admin, orderId: string): Promise<FulfillR
     if (error) logger.error("order save after delivery failed", { order_id: orderId, error: error.message });
 
     if (claimed.telegram_chat_id) {
-      await sendMessage(
-        claimed.telegram_chat_id,
-        `✅ <b>Order completed!</b>\n${esc(claimed.product_name)} × ${claimed.quantity} — ${esc(formatMoney(Number(claimed.selling_price) * claimed.quantity, sym))}\n\n<b>Your accounts:</b>\n${formatAccounts(result.accounts)}\n\nOrder ref: <code>${esc(claimed.external_order_id)}</code>`,
-        [[{ text: "🛍 Shop again", callback_data: "browse" }]],
-      );
+      try {
+        await sendMessage(
+          claimed.telegram_chat_id,
+          `✅ <b>Order completed!</b>\n${esc(claimed.product_name)} × ${claimed.quantity} — ${esc(formatMoney(Number(claimed.selling_price) * claimed.quantity, sym))}\n\n<b>Your accounts:</b>\n${formatAccounts(result.accounts)}\n\nOrder ref: <code>${esc(claimed.external_order_id)}</code>`,
+          [[{ text: "🛍 Shop again", callback_data: "browse" }]],
+        );
+      } catch (e) {
+        logger.error("account delivery message failed", { order_id: orderId, error: errorMessage(e) });
+        await alertOwner(db, `⚠️ Order <code>${esc(claimed.external_order_id)}</code> was fulfilled but the accounts message failed. Use "Resend accounts" in the CRM.`, settings);
+      }
     }
     // Refresh balance in background-ish (cached path handles alerting).
     void getBalance(db, true).catch(() => undefined);

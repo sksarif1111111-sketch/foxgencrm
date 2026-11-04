@@ -53,7 +53,7 @@ export class ResellerAPI {
       const res = await fetch(`${base}?${params.toString()}`, {
         method: init?.method ?? "GET",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: init?.body ? JSON.stringify(init.body) : undefined,
+        body: init?.body ? JSON.stringify(init.body) : null,
         signal: ctrl.signal,
       });
       status = res.status;
