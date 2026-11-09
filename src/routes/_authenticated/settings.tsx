@@ -21,7 +21,14 @@ import { settingBool, settingNumber } from "@/lib/settings-keys";
 import { botStatus, registerWebhook, sendOwnerTest } from "@/lib/crm.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "Settings — Digital Store CRM" }] }),
+  head: () => ({ meta: [
+    { title: "Settings \u2014 Digital Store CRM" },
+    { name: "description", content: "Manage store settings, payment details and Telegram owner alerts." },
+    { property: "og:title", content: "Settings \u2014 Digital Store CRM" },
+    { property: "og:description", content: "Manage store settings, payment details and Telegram owner alerts." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: SettingsPage,
 });
 

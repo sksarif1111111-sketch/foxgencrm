@@ -250,6 +250,80 @@ export type Database = {
         }
         Relationships: []
       }
+      store_integrations: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          key_hash: string
+          last_received_at: string | null
+          store_url: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id: string
+          key_hash: string
+          last_received_at?: string | null
+          store_url: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          key_hash?: string
+          last_received_at?: string | null
+          store_url?: string
+        }
+        Relationships: []
+      }
+      store_records: {
+        Row: {
+          amount: number | null
+          currency: string | null
+          data: Json
+          entity: string
+          external_id: string
+          integration_id: string
+          name: string
+          received_at: string
+          source_updated_at: string
+          status: string
+        }
+        Insert: {
+          amount?: number | null
+          currency?: string | null
+          data?: Json
+          entity: string
+          external_id: string
+          integration_id: string
+          name?: string
+          received_at?: string
+          source_updated_at: string
+          status?: string
+        }
+        Update: {
+          amount?: number | null
+          currency?: string | null
+          data?: Json
+          entity?: string
+          external_id?: string
+          integration_id?: string
+          name?: string
+          received_at?: string
+          source_updated_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_records_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "store_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -296,6 +370,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      ingest_store_records: {
+        Args: { _integration_id: string; _records: Json }
+        Returns: number
       }
       owner_exists: { Args: never; Returns: boolean }
       report_daily_series: {

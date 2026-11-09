@@ -16,7 +16,14 @@ import { formatMoney, round2 } from "@/lib/pricing";
 import { buildOrdersCsv } from "@/lib/csv";
 
 export const Route = createFileRoute("/_authenticated/reports")({
-  head: () => ({ meta: [{ title: "Reports — Digital Store CRM" }] }),
+  head: () => ({ meta: [
+    { title: "Reports \u2014 Digital Store CRM" },
+    { name: "description", content: "Review sales revenue, costs and profit over your chosen period." },
+    { property: "og:title", content: "Reports \u2014 Digital Store CRM" },
+    { property: "og:description", content: "Review sales revenue, costs and profit over your chosen period." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: Reports,
 });
 

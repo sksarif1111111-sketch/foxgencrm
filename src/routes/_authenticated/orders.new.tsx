@@ -16,7 +16,14 @@ import { productsQuery, useSettings } from "@/lib/crm-queries";
 import { formatMoney, orderTotals } from "@/lib/pricing";
 
 export const Route = createFileRoute("/_authenticated/orders/new")({
-  head: () => ({ meta: [{ title: "Add manual order — Digital Store CRM" }] }),
+  head: () => ({ meta: [
+    { title: "Add manual order \u2014 Digital Store CRM" },
+    { name: "description", content: "Record a direct sale with customer details and accurate costs." },
+    { property: "og:title", content: "Add manual order \u2014 Digital Store CRM" },
+    { property: "og:description", content: "Record a direct sale with customer details and accurate costs." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: NewOrder,
 });
 

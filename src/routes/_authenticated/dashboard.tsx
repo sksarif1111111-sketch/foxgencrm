@@ -15,7 +15,14 @@ import { formatMoney, profitMarginPercent } from "@/lib/pricing";
 import { fetchBalance } from "@/lib/crm.functions";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — Digital Store CRM" }] }),
+  head: () => ({ meta: [
+    { title: "Dashboard \u2014 Digital Store CRM" },
+    { name: "description", content: "Review daily revenue, profit, recent orders and supplier balance." },
+    { property: "og:title", content: "Dashboard \u2014 Digital Store CRM" },
+    { property: "og:description", content: "Review daily revenue, profit, recent orders and supplier balance." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: Dashboard,
 });
 

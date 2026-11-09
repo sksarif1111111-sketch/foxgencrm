@@ -22,7 +22,14 @@ import { syncCatalog } from "@/lib/crm.functions";
 type Product = Database["public"]["Tables"]["products"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/products")({
-  head: () => ({ meta: [{ title: "Products & pricing — Digital Store CRM" }] }),
+  head: () => ({ meta: [
+    { title: "Products & pricing \u2014 Digital Store CRM" },
+    { name: "description", content: "Manage digital product pricing, markup and supplier inventory." },
+    { property: "og:title", content: "Products & pricing \u2014 Digital Store CRM" },
+    { property: "og:description", content: "Manage digital product pricing, markup and supplier inventory." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: ProductsPage,
 });
 

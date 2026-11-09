@@ -23,7 +23,14 @@ const SearchSchema = z.object({
 
 export const Route = createFileRoute("/_authenticated/customers/")({
   validateSearch: SearchSchema,
-  head: () => ({ meta: [{ title: "Customers — Digital Store CRM" }] }),
+  head: () => ({ meta: [
+    { title: "Customers \u2014 Digital Store CRM" },
+    { name: "description", content: "Find customers and review their purchase history and spending." },
+    { property: "og:title", content: "Customers \u2014 Digital Store CRM" },
+    { property: "og:description", content: "Find customers and review their purchase history and spending." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: CustomersPage,
 });
 

@@ -15,6 +15,13 @@
       "when": 1793828955190,
       "tag": "0001_order_processing_lock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794257538570,
+      "tag": "0002_store_sync_integration",
+      "breakpoints": true
     }
   ]
 }

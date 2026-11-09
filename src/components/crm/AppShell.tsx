@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { BarChart3, LayoutDashboard, LogOut, Menu, Package, PlusCircle, Receipt, Settings, Users } from "lucide-react";
+import { BarChart3, LayoutDashboard, LogOut, Menu, Package, PlusCircle, Receipt, Settings, Store, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -14,6 +14,7 @@ const NAV = [
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/products", label: "Products", icon: Package },
   { to: "/reports", label: "Reports", icon: BarChart3 },
+  { to: "/store", label: "FoxGen Store", icon: Store },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

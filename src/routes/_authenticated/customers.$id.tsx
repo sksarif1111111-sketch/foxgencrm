@@ -12,7 +12,14 @@ import { formatMoney } from "@/lib/pricing";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/payment-validator";
 
 export const Route = createFileRoute("/_authenticated/customers/$id")({
-  head: () => ({ meta: [{ title: "Customer profile — Digital Store CRM" }] }),
+  head: () => ({ meta: [
+    { title: "Customer profile \u2014 Digital Store CRM" },
+    { name: "description", content: "Review customer contact details, purchases and lifetime value." },
+    { property: "og:title", content: "Customer profile \u2014 Digital Store CRM" },
+    { property: "og:description", content: "Review customer contact details, purchases and lifetime value." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: CustomerProfile,
 });
 

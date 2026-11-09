@@ -16,7 +16,14 @@ import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/payment-validat
 import { approveOrder, declineOrder, resendAccounts } from "@/lib/crm.functions";
 
 export const Route = createFileRoute("/_authenticated/orders/$id")({
-  head: () => ({ meta: [{ title: "Order details — Digital Store CRM" }] }),
+  head: () => ({ meta: [
+    { title: "Order details \u2014 Digital Store CRM" },
+    { name: "description", content: "Review payment details and delivery status for a digital product order." },
+    { property: "og:title", content: "Order details \u2014 Digital Store CRM" },
+    { property: "og:description", content: "Review payment details and delivery status for a digital product order." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: OrderDetail,
 });
 
