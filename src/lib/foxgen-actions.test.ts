@@ -21,6 +21,7 @@ describe("FoxGen Store action boundary", () => {
     expect(JSON.parse(fetcher.mock.calls[0]?.[1].body)).toEqual({
       action: "approve",
       order_id: "FG-001234",
+      send: false,
     });
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher.mock.calls[0]?.[1].headers.Authorization).toBe("Bearer test-only-fixture");

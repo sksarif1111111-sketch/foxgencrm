@@ -1,4 +1,8 @@
 # Store connection
+- [x] Make Home an order-first operations workspace with payment review and urgent delivery queues.
+- [x] Add owner-protected payment-evidence viewer, safe fixed-endpoint download and Store setup instructions; preserve the bot webhook.
+- [ ] Enable live private-proof sharing in Store (blocked: Store snapshot has only a session-protected admin proof endpoint, not the CRM-key-authorized endpoint; must be changed in the Store project).
+- [x] Verify 33 regression tests, owner Home with five real imported orders, detail navigation, unavailable proof sharing error, zero runtime errors and mobile layout without overflow.
 - [x] Align imported marketplace order/payment/delivery states, keeping Store approval authoritative and native sales unchanged.
 - [x] Add owner-only connection diagnostics and a copyable Store setup checklist; show exact-linked payment/refund history on orders.
 - [x] Verify 42 compatibility/regression tests, copied setup instructions, signed-in real order/member navigation, awaiting-payment action guard and mobile layout; external live delivery remains blocked below.

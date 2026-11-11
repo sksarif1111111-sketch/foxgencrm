@@ -18,6 +18,35 @@ import {
   connectionSummary,
 } from "./foxgen-marketplace";
 
+export const getFoxgenWorkspace = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const rows: FoxgenOrder[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const result = await context.supabase.from("store_records").select("*").eq("integration_id", "foxgen").eq("entity", "orders").order("external_id").range(offset, offset + 999);
+      if (result.error) throw new Error("Could not load the order workspace.");
+      rows.push(...(result.data ?? []));
+      if (!result.data || result.data.length < 1000) break;
+    }
+    return rows.map(row => ({ ...row, status: canonicalStatus(row.status), data: marketplaceData(row.data) as FoxgenOrder["data"] }));
+  });
+
+export const getFoxgenPaymentProof = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().min(1).max(200) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const role = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (role.error || !role.data) throw new Error("Only the owner can view payment proofs.");
+    const order = await context.supabase.from("store_records").select("external_id").eq("integration_id", "foxgen").eq("entity", "orders").eq("external_id", data.id).maybeSingle();
+    if (order.error || !order.data) throw new Error("This order is unavailable.");
+    const key = process.env["SHOP_CRM_ACTION_KEY"];
+    if (!key) return { ok: false as const, error: "The Store action key is missing. Connect it before viewing private proofs." };
+    try {
+      const { fetchStoreProof } = await import("./foxgen-proof.server");
+      return await fetchStoreProof(data.id, key);
+    } catch { return { ok: false as const, error: "Could not load the private payment proof. Try again or review it in Store admin." }; }
+  });
+
 export const getFoxgenCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => FoxgenCustomerSearch.parse(input))

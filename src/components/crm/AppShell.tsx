@@ -8,15 +8,15 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useSettings } from "@/lib/crm-queries";
 
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/orders", label: "Orders", icon: Receipt },
-  { to: "/orders/new", label: "Add order", icon: PlusCircle },
+  { to: "/dashboard", label: "Home · Order desk", icon: LayoutDashboard },
+  { to: "/foxgen-orders", label: "Store orders & delivery", icon: Receipt },
+  { to: "/foxgen-customers", label: "Store members", icon: Users },
+  { to: "/store", label: "Store connection", icon: Store },
+  { to: "/orders", label: "Native orders", icon: Receipt },
+  { to: "/orders/new", label: "Manual order", icon: PlusCircle },
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/products", label: "Products", icon: Package },
   { to: "/reports", label: "Reports", icon: BarChart3 },
-  { to: "/store", label: "FoxGen Store", icon: Store },
-  { to: "/foxgen-orders", label: "FoxGen Store Orders", icon: Receipt },
-  { to: "/foxgen-customers", label: "FoxGen Customers", icon: Users },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -62,9 +62,9 @@ export function AppShell({ children, email }: { children: ReactNode; email: stri
   const footer = (
     <div className="mt-auto border-t border-sidebar-border px-3 pt-4">
       <p className="truncate text-xs text-sidebar-muted">{email}</p>
-      <button onClick={signOut} className="mt-2 flex items-center gap-2 text-sm text-sidebar-foreground hover:text-sidebar-primary">
+      <Button variant="ghost" onClick={signOut} className="mt-2 px-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-primary">
         <LogOut className="size-4" /> Sign out
-      </button>
+      </Button>
     </div>
   );
 
@@ -80,13 +80,13 @@ export function AppShell({ children, email }: { children: ReactNode; email: stri
         <span className="font-display font-bold text-sidebar-foreground">{s?.store_name ?? "Digital Store"}</span>
         <div className="flex items-center gap-2">
           <Button asChild size="sm" variant="highlight">
-            <Link to="/orders/new">
-              <PlusCircle /> Order
+            <Link to="/foxgen-orders">
+              <Receipt /> Orders
             </Link>
           </Button>
-          <button aria-label="Open menu" onClick={() => setOpen(true)} className="rounded-md p-2 text-sidebar-foreground">
+          <Button variant="ghost" size="icon" aria-label="Open menu" onClick={() => setOpen(true)} className="text-sidebar-foreground hover:bg-sidebar-accent">
             <Menu className="size-5" />
-          </button>
+          </Button>
         </div>
       </header>
       <Sheet open={open} onOpenChange={setOpen}>

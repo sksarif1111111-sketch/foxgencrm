@@ -7,9 +7,16 @@ import {
   getFoxgenOrders,
   getFoxgenOrderActivity,
   getFoxgenConnection,
+  getFoxgenWorkspace,
 } from "./foxgen.functions";
 import type { FoxgenFilters } from "./foxgen-orders";
 import type { FoxgenCustomerFilters } from "./foxgen-customers";
+
+export const foxgenWorkspaceOptions = queryOptions({
+  queryKey: ["foxgen", "workspace"],
+  queryFn: () => getFoxgenWorkspace(),
+  refetchInterval: 15000,
+});
 
 export const foxgenCustomerListOptions = (filters: FoxgenCustomerFilters) =>
   queryOptions({

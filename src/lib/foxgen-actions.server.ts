@@ -13,7 +13,7 @@ export async function callFoxgenAction(input: FoxgenAction | ReturnType<typeof c
     const response = await fetch("https://foxgenofficial.lovable.app/api/public/shop/v1/actions", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify(input.action === "approve" ? { ...input, send: false } : input),
       signal: AbortSignal.timeout(25000),
       redirect: "error",
     });

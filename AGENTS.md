@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+- Home prioritizes imported Store review/delivery queues; private proof viewing uses an owner-authorized server function and a fixed Store endpoint, returning only bounded image/PDF bytes in temporary browser blobs. Why: keep bot ownership in the Store and prevent public proof URLs, token leakage and arbitrary URL fetching.
 - Settings sync-key controls reuse the existing owner-authorized rotation function and integration query key; raw keys stay only in temporary component state. Why: keep both connection surfaces consistent without persisting credentials in the browser.
 - Password-only owner sign-in passes the fixed owner email to Cloud Auth; never compare passwords in the browser or replace account authentication with a shared gate. Why: existing owner RLS and session checks must continue protecting CRM data.
 - Stack is TanStack Start (not Next.js, which the uploaded docs mention); keep pages in `src/routes/`, owner pages under `src/routes/_authenticated/`. Why: Lovable only supports TanStack Start.

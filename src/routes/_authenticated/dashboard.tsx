@@ -14,13 +14,16 @@ import { presetRange } from "@/lib/date-ranges";
 import { formatMoney, profitMarginPercent } from "@/lib/pricing";
 import { fetchBalance } from "@/lib/crm.functions";
 import { FoxgenKpis } from "@/components/crm/FoxgenMetrics";
+import { FoxgenOrderWorkspace } from "@/components/crm/FoxgenOrderWorkspace";
+import { foxgenWorkspaceOptions } from "@/lib/foxgen-queries";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(foxgenWorkspaceOptions),
   head: () => ({ meta: [
-    { title: "Dashboard \u2014 Digital Store CRM" },
-    { name: "description", content: "Review daily revenue, profit, recent orders and supplier balance." },
-    { property: "og:title", content: "Dashboard \u2014 Digital Store CRM" },
-    { property: "og:description", content: "Review daily revenue, profit, recent orders and supplier balance." },
+    { title: "Order Desk — FoxGen CRM" },
+    { name: "description", content: "Review Telegram and website payments, prioritize urgent orders and manage customer delivery." },
+    { property: "og:title", content: "Order Desk — FoxGen CRM" },
+    { property: "og:description", content: "Review Telegram and website payments, prioritize urgent orders and manage customer delivery." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary" },
   ] }),
@@ -69,16 +72,21 @@ function Dashboard() {
   return (
     <>
       <PageHeader
-        title="Today at a glance"
+        title="Order operations"
         description={new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
         actions={
           <Button asChild variant="highlight">
-            <Link to="/orders/new">
-              <PlusCircle /> Add manual order
+            <Link to="/foxgen-orders">
+              <ShoppingBag /> Store orders
             </Link>
           </Button>
         }
       />
+      <FoxgenOrderWorkspace />
+      <details className="border-t pt-5">
+        <summary className="cursor-pointer font-display text-lg font-semibold">Native sales & manual operations</summary>
+        <div className="mt-5">
+          <Button asChild variant="outline" className="mb-4"><Link to="/orders/new"><PlusCircle />Add manual order</Link></Button>
       <BalanceAlert />
       {(pendingQ.data ?? 0) > 0 && (
         <Link
@@ -178,6 +186,8 @@ function Dashboard() {
         </div>
         <OrderTable orders={recentQ.data ?? []} symbol={sym} compact />
       </div>
+        </div>
+      </details>
     </>
   );
 }

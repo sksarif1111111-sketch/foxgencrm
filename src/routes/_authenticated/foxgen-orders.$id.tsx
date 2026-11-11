@@ -44,6 +44,8 @@ import {
 import type { Json } from "@/integrations/supabase/types";
 import { customerExternalId } from "@/lib/foxgen-customers";
 import { FoxgenOrderActivity } from "@/components/crm/FoxgenOrderActivity";
+import { FoxgenPaymentEvidence } from "@/components/crm/FoxgenPaymentEvidence";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/_authenticated/foxgen-orders/$id")({
   loader: ({ context, params }) =>
@@ -108,6 +110,7 @@ function FoxgenDetail() {
   const [content, setContent] = useState("");
   const [kind, setKind] = useState<"link" | "code" | "instructions">("link");
   const [overlay, setOverlay] = useState<Overlay | null>(null);
+  const [verified, setVerified] = useState(false);
   const source = q.data;
   if (!source)
     return (
@@ -131,7 +134,7 @@ function FoxgenDetail() {
     setForm(next);
   }
   async function run(input: FoxgenAction) {
-    if (!source || busy) return;
+    if (!source || busy || (input.action === "approve" && !verified)) return;
     setBusy(input.action);
     setError(null);
     try {
@@ -227,7 +230,7 @@ function FoxgenDetail() {
           <>
             <Button
               variant="success"
-              disabled={!!busy || !can("approve")}
+              disabled={!!busy || !verified || !can("approve")}
               onClick={() => run({ action: "approve", order_id: id })}
             >
               {icon("approve", <Check />)}
@@ -283,6 +286,8 @@ function FoxgenDetail() {
           </Button>
         )}
       </div>
+      <FoxgenPaymentEvidence key={o.external_id} order={o} />
+      {["under_review", "payment_submitted"].includes(o.status) && <div className="mb-6 flex items-start gap-3 border-l-2 border-warning py-2 pl-4"><Checkbox id="payment-verified" checked={verified} onCheckedChange={v => setVerified(v === true)} /><Label htmlFor="payment-verified" className="text-sm leading-5">I checked the transaction and confirmed the payment was actually received. A screenshot alone is not verification.</Label></div>}
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="border-t pt-4">
           <h2 className="mb-4 text-lg font-semibold">Customer</h2>
