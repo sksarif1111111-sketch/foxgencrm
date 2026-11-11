@@ -10,6 +10,7 @@ import {
 } from "./foxgen-orders";
 import { callFoxgenAction } from "./foxgen-actions.server";
 import { customerOrderCounts, FoxgenCustomerSearch, memberPayments } from "./foxgen-customers";
+import { orderPaymentData } from "./foxgen-payment-evidence";
 import {
   canonicalStatus,
   marketplaceData,
@@ -207,11 +208,19 @@ export const getFoxgenOrder = createServerFn({ method: "GET" })
       .eq("external_id", data.id)
       .maybeSingle();
     if (error) throw new Error("Could not load this Store order. Try again in a moment.");
+    if (!order) return null;
+    const payments: FoxgenOrder[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const result = await context.supabase.from("store_records").select("*").eq("integration_id", "foxgen").eq("entity", "payments").eq("data->>order_external_id", order.external_id).order("external_id").range(offset, offset + 999);
+      if (result.error) throw new Error("Could not load this order's payment evidence.");
+      payments.push(...(result.data ?? []));
+      if (!result.data || result.data.length < 1000) break;
+    }
     return order
       ? {
           ...order,
           status: canonicalStatus(order.status),
-          data: marketplaceData(order.data) as FoxgenOrder["data"],
+          data: orderPaymentData(order, payments) as FoxgenOrder["data"],
         }
       : null;
   });

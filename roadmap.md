@@ -1,4 +1,6 @@
 # Store connection
+- [x] Reconcile transaction references from exact-linked order payments and provide an order-specific Store proof repair handoff.
+- [x] Verify 28 tests and current owner order readback, copied repair instructions and zero runtime errors; live proof endpoint is absent (404), existing Store admin proof endpoint rejects CRM authorization (401), and current expired website order has no submitted reference.
 - [x] Make Home an order-first operations workspace with payment review and urgent delivery queues.
 - [x] Add owner-protected payment-evidence viewer, safe fixed-endpoint download and Store setup instructions; preserve the bot webhook.
 - [ ] Enable live private-proof sharing in Store (blocked: Store snapshot has only a session-protected admin proof endpoint, not the CRM-key-authorized endpoint; must be changed in the Store project).
