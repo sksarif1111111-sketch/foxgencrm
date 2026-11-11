@@ -20,6 +20,7 @@ import { SettingsSchema } from "@/lib/validators";
 import { settingBool, settingNumber } from "@/lib/settings-keys";
 import { botStatus, registerWebhook, sendOwnerTest } from "@/lib/crm.functions";
 import { FoxgenConnectionCard } from "@/components/crm/FoxgenMetrics";
+import { StoreSyncKeySettings } from "@/components/crm/StoreSyncKeySettings";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [
@@ -78,6 +79,7 @@ function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" description="Store details, payment instructions, alerts and the Telegram bot." />
+      <div className="mb-6"><StoreSyncKeySettings /></div>
       <div className="grid gap-6 lg:grid-cols-3">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 lg:col-span-2">
           <Section title="Store">

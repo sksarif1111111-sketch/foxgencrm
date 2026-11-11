@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+- Settings sync-key controls reuse the existing owner-authorized rotation function and integration query key; raw keys stay only in temporary component state. Why: keep both connection surfaces consistent without persisting credentials in the browser.
 - Password-only owner sign-in passes the fixed owner email to Cloud Auth; never compare passwords in the browser or replace account authentication with a shared gate. Why: existing owner RLS and session checks must continue protecting CRM data.
 - Stack is TanStack Start (not Next.js, which the uploaded docs mention); keep pages in `src/routes/`, owner pages under `src/routes/_authenticated/`. Why: Lovable only supports TanStack Start.
 - Only the first account gets the `admin` role (trigger on signup); every table's RLS requires `has_role(auth.uid(),'admin')`. Why: single-owner CRM, extra signups must see nothing.
