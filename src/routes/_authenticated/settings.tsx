@@ -19,6 +19,7 @@ import { useSettings } from "@/lib/crm-queries";
 import { SettingsSchema } from "@/lib/validators";
 import { settingBool, settingNumber } from "@/lib/settings-keys";
 import { botStatus, registerWebhook, sendOwnerTest } from "@/lib/crm.functions";
+import { FoxgenConnectionCard } from "@/components/crm/FoxgenMetrics";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [
@@ -147,6 +148,7 @@ function SettingsPage() {
         </form>
 
         <div className="space-y-6">
+          <FoxgenConnectionCard />
           <BotCard />
           <ApiLog />
         </div>

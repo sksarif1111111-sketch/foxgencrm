@@ -17,5 +17,6 @@
 - Supplier payload parsing is tolerant (`src/lib/reseller-normalize.ts`) because the response shape is undocumented; adjust there once the real shape is known.
 - Order money columns are per-unit; `total_amount`, `total_cost`, `profit` are generated columns, and customer/product stats update via trigger when an order becomes completed. Why: one source of truth for profit.
 - Secrets (supplier key, Telegram key) are env vars, never rows in `settings`.
-- Store imports use separate read-only `store_records` and a version-aware atomic ingest RPC; never send these records to supplier fulfillment. Why: imported purchases are tracking-only and must not cause delivery or double charges.
+- Store imports remain in `store_records` with version-aware atomic ingest; operator actions use the separate owner-authorized FoxGen Store actions API, never native supplier fulfillment. Why: the Store owns payment and delivery, and sync remains the authoritative order state.
+- FoxGen clocks and KPIs share pure delivery rules; action acknowledgements are temporary UI overlays until a newer sync version arrives. Why: consistent SLA boundaries without overwriting imported source versions.
 - Store integration keys are generated for the owner, shown once, and stored only as SHA-256 hashes; the public sync handler verifies the key before privileged access. Why: authenticate external writes without exposing CRM login or raw credentials.

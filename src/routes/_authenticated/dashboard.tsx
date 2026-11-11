@@ -13,6 +13,7 @@ import { fetchSummary, fetchTopProducts, useSettings } from "@/lib/crm-queries";
 import { presetRange } from "@/lib/date-ranges";
 import { formatMoney, profitMarginPercent } from "@/lib/pricing";
 import { fetchBalance } from "@/lib/crm.functions";
+import { FoxgenKpis } from "@/components/crm/FoxgenMetrics";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [
@@ -124,6 +125,7 @@ function Dashboard() {
         />
       </div>
 
+      <FoxgenKpis />
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <div className="rounded-xl border bg-card p-5 shadow-card">
           <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">Order volume</h2>

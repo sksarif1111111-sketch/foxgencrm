@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { rotateStoreKey, setStoreEnabled } from "@/lib/store-sync.functions";
 import { STORE_ENTITIES, STORE_URL } from "@/lib/store-sync";
 import type { Database } from "@/integrations/supabase/types";
+import { FoxgenConnectionCard } from "@/components/crm/FoxgenMetrics";
 
 export const Route = createFileRoute("/_authenticated/store")({
   head: () => ({ meta: [
@@ -87,6 +88,7 @@ function StorePage() {
         <Button variant="ghost" onClick={() => setKey(null)}>I have saved the key</Button>
       </div>}
     </section>
+    <div className="mb-6"><FoxgenConnectionCard /></div>
     <Tabs value={entity} onValueChange={(v) => { setEntity(v as typeof entity); setPage(0); setTerm(""); }}><div className="overflow-x-auto"><TabsList>{STORE_ENTITIES.map((e) => <TabsTrigger key={e} value={e}>{labels[e]}</TabsTrigger>)}</TabsList></div></Tabs>
     <div className="my-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{records.data?.count ?? 0} records</p><Input aria-label="Search store records" placeholder="Search name or ID" value={term} onChange={(e) => { setTerm(e.target.value); setPage(0); }} className="max-w-xs" /></div>
     {records.error ? <p className="text-destructive">{records.error.message}</p> : records.isLoading ? <p className="text-muted-foreground">Loading…</p> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>ID / Name</TableHead><TableHead>Status</TableHead><TableHead>Amount</TableHead><TableHead>Updated</TableHead><TableHead /></TableRow></TableHeader><TableBody>
