@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+- Password-only owner sign-in passes the fixed owner email to Cloud Auth; never compare passwords in the browser or replace account authentication with a shared gate. Why: existing owner RLS and session checks must continue protecting CRM data.
 - Stack is TanStack Start (not Next.js, which the uploaded docs mention); keep pages in `src/routes/`, owner pages under `src/routes/_authenticated/`. Why: Lovable only supports TanStack Start.
 - Only the first account gets the `admin` role (trigger on signup); every table's RLS requires `has_role(auth.uid(),'admin')`. Why: single-owner CRM, extra signups must see nothing.
 - Telegram bot = DB-persisted state machine in `src/lib/bot.server.ts` behind `/api/public/telegram/webhook` (secret header = sha256 of connection key), calling Telegram through the connector gateway. Why: Grammy conversations need long-lived in-memory replay, which a stateless worker can't keep.

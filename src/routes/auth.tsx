@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OWNER_EMAIL, OWNER_PASSWORD_MIN_LENGTH } from "@/lib/owner-signin";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -21,27 +21,18 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-type Mode = "signin" | "signup" | "forgot";
+type Mode = "signin" | "forgot";
 
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("signin");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const { data: ownerExists } = useQuery({
-    queryKey: ["owner-exists"],
-    queryFn: async () => {
-      const { data } = await supabase.rpc("owner_exists");
-      return Boolean(data);
-    },
-  });
-
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email === OWNER_EMAIL) navigate({ to: "/dashboard", replace: true });
     });
   }, [navigate]);
 
@@ -51,21 +42,19 @@ function AuthPage() {
     setNotice(null);
     try {
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { error } = await supabase.auth.signInWithPassword({ email: OWNER_EMAIL, password });
+        if (error) {
+          setNotice("Could not sign in. Check your password and try again.");
+          return;
+        }
         navigate({ to: "/dashboard", replace: true });
-      } else if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
-        if (error) throw error;
-        if (data.session) navigate({ to: "/dashboard", replace: true });
-        else setNotice("Check your inbox and click the confirmation link, then sign in.");
       } else {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+        const { error } = await supabase.auth.resetPasswordForEmail(OWNER_EMAIL, { redirectTo: `${window.location.origin}/reset-password` });
         if (error) throw error;
-        setNotice("If that email has an account, a reset link is on its way.");
+        setNotice("A reset link is on its way to the owner's email.");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      toast.error("Could not reach sign-in. Try again in a moment.");
     } finally {
       setBusy(false);
     }
@@ -92,15 +81,11 @@ function AuthPage() {
         <form onSubmit={submit} className="w-full max-w-sm space-y-5">
           <div>
             <h2 className="text-3xl font-bold">
-              {mode === "signin" ? "Owner sign in" : mode === "signup" ? "Create owner account" : "Reset password"}
+              {mode === "signin" ? "Owner sign in" : "Reset password"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {mode === "signup" ? "The first account becomes the store owner." : mode === "forgot" ? "We'll email you a reset link." : "Welcome back."}
+              {mode === "forgot" ? "We'll email the owner a reset link." : "Welcome back."}
             </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           {mode !== "forgot" && (
             <div className="space-y-2">
@@ -109,32 +94,27 @@ function AuthPage() {
                 id="password"
                 type="password"
                 required
-                minLength={8}
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                minLength={OWNER_PASSWORD_MIN_LENGTH}
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
           )}
-          {notice && <p className="rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground">{notice}</p>}
+          {notice && <p role="status" className="rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground">{notice}</p>}
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Please wait…" : mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset link"}
+            {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Send reset link"}
           </Button>
           <div className="flex flex-col gap-2 text-center text-sm">
             {mode !== "signin" && (
-              <button type="button" className="text-primary hover:underline" onClick={() => setMode("signin")}>
+              <Button variant="link" type="button" onClick={() => { setMode("signin"); setNotice(null); }}>
                 Back to sign in
-              </button>
+              </Button>
             )}
             {mode === "signin" && (
-              <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setMode("forgot")}>
+              <Button variant="link" type="button" className="text-muted-foreground" onClick={() => { setMode("forgot"); setNotice(null); }}>
                 Forgot password?
-              </button>
-            )}
-            {mode === "signin" && ownerExists === false && (
-              <button type="button" className="text-primary hover:underline" onClick={() => setMode("signup")}>
-                First time? Create the owner account
-              </button>
+              </Button>
             )}
           </div>
         </form>
