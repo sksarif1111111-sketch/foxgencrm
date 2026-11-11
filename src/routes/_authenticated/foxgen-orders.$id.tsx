@@ -43,6 +43,7 @@ import {
 } from "@/lib/foxgen-orders";
 import type { Json } from "@/integrations/supabase/types";
 import { customerExternalId } from "@/lib/foxgen-customers";
+import { FoxgenOrderActivity } from "@/components/crm/FoxgenOrderActivity";
 
 export const Route = createFileRoute("/_authenticated/foxgen-orders/$id")({
   loader: ({ context, params }) =>
@@ -170,9 +171,12 @@ function FoxgenDetail() {
   const can = (action: FoxgenAction["action"]) => !pendingSync && allowedAction(action, o);
   const icon = (action: FoxgenAction["action"], normal: React.ReactNode) =>
     busy === action ? <LoaderCircle className="animate-spin" /> : normal;
-  const showDelivery = ["payment_confirmed", "awaiting_fulfillment", "awaiting_email"].includes(
-    o.status,
-  );
+  const showDelivery = [
+    "payment_confirmed",
+    "awaiting_fulfillment",
+    "awaiting_email",
+    "delayed",
+  ].includes(o.status);
   const customerId = customerExternalId(o.data);
   return (
     <div className="foxgen-section">
@@ -285,11 +289,19 @@ function FoxgenDetail() {
           <dl className="grid gap-4 sm:grid-cols-2">
             <div className="min-w-0">
               <dt className="text-xs text-muted-foreground">Customer name</dt>
-              <dd className="mt-1 break-words text-sm">{customerId ? (
-                <Link to="/foxgen-customers/$id" params={{ id: customerId }} className="font-medium text-primary hover:underline">
-                  {text(d["customer_name"] ?? d["name"] ?? customerId)}
-                </Link>
-              ) : text(d["customer_name"] ?? d["name"])}</dd>
+              <dd className="mt-1 break-words text-sm">
+                {customerId ? (
+                  <Link
+                    to="/foxgen-customers/$id"
+                    params={{ id: customerId }}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {text(d["customer_name"] ?? d["name"] ?? customerId)}
+                  </Link>
+                ) : (
+                  text(d["customer_name"] ?? d["name"])
+                )}
+              </dd>
             </div>
             {Object.entries({
               "Customer email": d["customer_email"],
@@ -308,7 +320,11 @@ function FoxgenDetail() {
               label="Amount"
               value={o.amount == null ? null : `${o.currency ?? ""} ${o.amount.toFixed(2)}`}
             />
-            <Field label="Payment method" value={d["payment_method"]} />
+            <Field label="Payment method" value={d["payment_method_name"] ?? d["payment_method"]} />
+            <Field
+              label="Payment status"
+              value={d["payment_status"] ?? o.status.replaceAll("_", " ")}
+            />
             <Field
               label="Payment reference"
               value={d["payment_reference"] ?? d["payment_ref"] ?? d["payment_proof"]}
@@ -322,6 +338,7 @@ function FoxgenDetail() {
           </dl>
         </section>
       </div>
+      <FoxgenOrderActivity id={id} />
       <section className="mt-6 border-t pt-4">
         <h2 className="mb-4 text-lg font-semibold">Line items</h2>
         {Array.isArray(d["line_items"] ?? d["items"]) ? (

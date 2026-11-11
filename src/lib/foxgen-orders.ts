@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Database, Json } from "@/integrations/supabase/types";
+import { canonicalStatus, marketplaceData } from "./foxgen-marketplace";
 
 export type FoxgenOrder = Database["public"]["Tables"]["store_records"]["Row"];
 export const FOXGEN_STATUSES = [
@@ -13,6 +14,8 @@ export const FOXGEN_STATUSES = [
   "rejected",
   "cancelled",
   "expired",
+  "delayed",
+  "refunded",
 ] as const;
 export const FoxgenSearch = z.object({
   q: z.string().max(100).optional().catch(undefined),
@@ -102,10 +105,12 @@ export function deliveryClock(
   } as const;
 }
 export function clockRunning(status: string) {
-  return status === "payment_confirmed" || status === "awaiting_fulfillment";
+  return ["payment_confirmed", "awaiting_fulfillment", "delayed"].includes(canonicalStatus(status));
 }
 export function isBot(data: Record<string, unknown>) {
-  return String(data["channel"] ?? "").toLowerCase() === "bot";
+  return ["bot", "telegram"].includes(
+    String(data["channel"] ?? data["source"] ?? "").toLowerCase(),
+  );
 }
 export function hasEmails(data: Record<string, unknown>) {
   return Array.isArray(data["delivery_emails"])
@@ -113,13 +118,14 @@ export function hasEmails(data: Record<string, unknown>) {
     : typeof data["delivery_emails"] === "string" && !!data["delivery_emails"].trim();
 }
 export function allowedAction(action: FoxgenAction["action"], order: FoxgenOrder): boolean {
-  const d = orderData(order.data);
+  const d = marketplaceData(order.data);
+  const status = canonicalStatus(order.status);
   if (action === "approve" || action === "reject")
-    return ["under_review", "payment_submitted"].includes(order.status);
+    return ["under_review", "payment_submitted"].includes(status);
   if (action === "request_info")
-    return !["delivered", "rejected", "cancelled", "expired"].includes(order.status);
+    return !["delivered", "rejected", "cancelled", "expired", "refunded"].includes(status);
   const approved =
-    ["payment_confirmed", "awaiting_fulfillment", "awaiting_email"].includes(order.status) &&
+    ["payment_confirmed", "awaiting_fulfillment", "awaiting_email", "delayed"].includes(status) &&
     timestamp(d["confirmed_at"]) !== null;
   if (action === "add_fulfillment") return approved;
   if (!approved || d["has_fulfillment"] !== true) return false;
@@ -131,7 +137,7 @@ export function foxgenMetrics(orders: FoxgenOrder[], now: number) {
     delivered = 0;
   let lastReceived: string | null = null;
   for (const o of orders) {
-    const d = orderData(o.data);
+    const d = marketplaceData(o.data);
     const clock = deliveryClock(
       d["confirmed_at"],
       d["shop_delivery_sla_minutes"],

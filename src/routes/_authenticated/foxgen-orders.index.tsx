@@ -169,6 +169,7 @@ function FoxgenOrders() {
               <TableRow>
                 <TableHead>Order</TableHead>
                 <TableHead>Source</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Delivery</TableHead>
@@ -193,6 +194,20 @@ function FoxgenOrders() {
                     </TableCell>
                     <TableCell>
                       <FoxgenSource data={d} />
+                    </TableCell>
+                    <TableCell className="min-w-40 max-w-64 break-words">
+                      {typeof d["customer_external_id"] === "string" &&
+                      d["customer_external_id"] ? (
+                        <Link
+                          to="/foxgen-customers/$id"
+                          params={{ id: d["customer_external_id"] }}
+                          className="text-primary hover:underline"
+                        >
+                          {String(d["customer_name"] ?? d["customer_external_id"])}
+                        </Link>
+                      ) : (
+                        String(d["customer_name"] ?? "—")
+                      )}
                     </TableCell>
                     <TableCell>
                       <FoxgenStatus status={o.status} />
