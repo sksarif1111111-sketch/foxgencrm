@@ -49,7 +49,11 @@ function ProductsPage() {
     setSyncing(true);
     const r = await sync();
     setSyncing(false);
-    if (r.ok) toast.success(`Synced ${r.count} products from supplier`);
+    if (r.ok) {
+      toast.success(`Synced ${r.count} products from supplier`);
+      if (r.shopPush.failed) toast.warning(`CRM catalogue saved. ${r.shopPush.failed} products could not be sent to FoxGen Store. Try syncing again later.`);
+      else if (r.shopPush.pushed) toast.success(`Sent ${r.shopPush.pushed} products to FoxGen Store for review`);
+    }
     else toast.error(`Sync failed: ${r.error}`);
     qc.invalidateQueries({ queryKey: ["products"] });
   }

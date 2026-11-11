@@ -9,7 +9,7 @@ import {
   type FoxgenOrder,
 } from "./foxgen-orders";
 import { callFoxgenAction } from "./foxgen-actions.server";
-import { customerOrderCounts, FoxgenCustomerSearch } from "./foxgen-customers";
+import { customerOrderCounts, FoxgenCustomerSearch, memberPayments } from "./foxgen-customers";
 
 export const getFoxgenCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -18,7 +18,7 @@ export const getFoxgenCustomers = createServerFn({ method: "GET" })
     let query = context.supabase.from("store_records").select("*", { count: "exact" })
       .eq("integration_id", "foxgen").eq("entity", "customers");
     const term = (data.q ?? "").replace(/[^\p{L}\p{N}\s@._-]/gu, " ").trim();
-    if (term) query = query.or(`name.ilike.%${term}%,external_id.ilike.%${term}%,data->>email.ilike.%${term}%,data->>customer_email.ilike.%${term}%,data->>telegram_username.ilike.%${term}%,data->>telegram_user_id.ilike.%${term}%`);
+    if (term) query = query.or(`name.ilike.%${term}%,external_id.ilike.%${term}%,data->>member_number.ilike.%${term}%,data->>email.ilike.%${term}%,data->>customer_email.ilike.%${term}%,data->>telegram_username.ilike.%${term}%,data->>telegram_user_id.ilike.%${term}%`);
     const page = data.page ?? 0;
     const { data: rows, count, error } = await query.order("source_updated_at", { ascending: false })
       .order("external_id").range(page * 50, page * 50 + 49);
@@ -46,7 +46,7 @@ export const getFoxgenCustomer = createServerFn({ method: "GET" })
     const result = await context.supabase.from("store_records").select("*")
       .eq("integration_id", "foxgen").eq("entity", "customers").eq("external_id", data.id).maybeSingle();
     if (result.error) throw new Error("Could not load this FoxGen customer. Try again in a moment.");
-    if (!result.data) return { customer: null, orders: [] };
+    if (!result.data) return { customer: null, orders: [], payments: [] };
     const orders: FoxgenOrder[] = [];
     for (let offset = 0; ; offset += 1000) {
       const batch = await context.supabase.from("store_records").select("*")
@@ -57,7 +57,17 @@ export const getFoxgenCustomer = createServerFn({ method: "GET" })
       orders.push(...(batch.data ?? []));
       if (!batch.data || batch.data.length < 1000) break;
     }
-    return { customer: result.data, orders };
+    const payments: FoxgenOrder[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const batch = await context.supabase.from("store_records").select("*")
+        .eq("integration_id", "foxgen").eq("entity", "payments")
+        .eq("data->>customer_external_id", result.data.external_id)
+        .order("source_updated_at", { ascending: false }).order("external_id").range(offset, offset + 999);
+      if (batch.error) throw new Error("Could not load this member's wallet activity. Try again in a moment.");
+      payments.push(...(batch.data ?? []));
+      if (!batch.data || batch.data.length < 1000) break;
+    }
+    return { customer: result.data, orders, payments: memberPayments(payments, result.data.external_id) };
   });
 
 export const getFoxgenOrders = createServerFn({ method: "GET" })

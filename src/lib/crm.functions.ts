@@ -30,7 +30,7 @@ export const syncCatalog = createServerFn({ method: "POST" })
     const { syncProducts } = await import("./store.server");
     try {
       const r = await syncProducts(db);
-      return { ok: true as const, count: r.count, error: null };
+      return { ok: true as const, count: r.count, shopPush: r.shopPush, error: null };
     } catch (e) {
       return { ok: false as const, count: 0, error: e instanceof Error ? e.message : String(e) };
     }

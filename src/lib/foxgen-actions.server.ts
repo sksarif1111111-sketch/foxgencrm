@@ -1,7 +1,8 @@
 import type { FoxgenAction } from "./foxgen-orders";
+import type { catalogueAction } from "./foxgen-catalogue";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
-export async function callFoxgenAction(input: FoxgenAction): Promise<ActionResult> {
+export async function callFoxgenAction(input: FoxgenAction | ReturnType<typeof catalogueAction>): Promise<ActionResult> {
   const key = process.env["SHOP_CRM_ACTION_KEY"];
   if (!key)
     return {
@@ -25,10 +26,10 @@ export async function callFoxgenAction(input: FoxgenAction): Promise<ActionResul
           : response.status === 409
             ? "The store order has changed. Refresh it before trying again."
             : response.status === 404
-              ? "The store could not find this order or its actions endpoint."
+              ? "The store could not find the requested item or its actions endpoint."
               : response.status === 400 || response.status === 422
-                ? "The store could not accept these details. Check the order and submitted information."
-                : "Could not reach the store. Check the order's latest status before trying again.";
+                ? "The store could not accept these details. Check the submitted information."
+                : "Could not reach the store. Check its latest status before trying again.";
       return { ok: false, error };
     }
     const body: unknown = await response.json();
@@ -40,7 +41,7 @@ export async function callFoxgenAction(input: FoxgenAction): Promise<ActionResul
     ) {
       return {
         ok: false,
-        error: "The store did not confirm this action. Refresh the order before trying again.",
+        error: "The store did not confirm this action. Refresh the store before trying again.",
       };
     }
     return { ok: true };
@@ -48,7 +49,7 @@ export async function callFoxgenAction(input: FoxgenAction): Promise<ActionResul
     return {
       ok: false,
       error:
-        "Could not reach the store. The action may have reached it; check the order before trying again.",
+        "Could not reach the store. The action may have reached it; check the store before trying again.",
     };
   }
 }

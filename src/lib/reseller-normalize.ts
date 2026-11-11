@@ -6,6 +6,7 @@ export interface SupplierProduct {
   description: string | null;
   wholesale_price: number;
   stock: number | null;
+  image_url?: string | null;
 }
 
 type Obj = Record<string, unknown>;
@@ -68,6 +69,7 @@ export function parseProducts(payload: unknown): SupplierProduct[] {
       description: str(pick(raw, ["description", "desc", "details"])),
       wholesale_price: price,
       stock: stock === null ? null : Math.max(0, Math.floor(stock)),
+      ...(str(pick(raw, ["image_url", "image", "thumbnail_url", "thumbnail"])) ? { image_url: str(pick(raw, ["image_url", "image", "thumbnail_url", "thumbnail"])) } : {}),
     });
   }
   return out;

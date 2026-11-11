@@ -6,6 +6,7 @@ import { computeSellingPrice, effectiveMarkup, formatMoney } from "./pricing";
 import { settingNumber, withDefaults, type Settings } from "./settings-keys";
 import { esc, sendMessage } from "./telegram.server";
 import { errorMessage, logger } from "./logger";
+import { pushFoxgenCatalogue } from "./foxgen-catalogue.server";
 
 type Admin = SupabaseClient<Database>;
 
@@ -27,7 +28,7 @@ async function setMeta(db: Admin, key: string, value: string) {
 }
 
 /** Pull catalog from supplier and upsert, keeping per-product markup overrides. */
-export async function syncProducts(db: Admin): Promise<{ count: number }> {
+export async function syncProducts(db: Admin): Promise<{ count: number; shopPush: { pushed: number; failed: number } }> {
   const api = new ResellerAPI(db);
   const [products, settings, existingRes] = await Promise.all([
     api.getProducts(),
@@ -60,7 +61,15 @@ export async function syncProducts(db: Admin): Promise<{ count: number }> {
   const stale = (existingRes.data ?? []).filter((p) => !ids.has(p.id)).map((p) => p.id);
   if (stale.length) await db.from("products").update({ is_active: false }).in("id", stale);
   await setMeta(db, "products_synced_at", now);
-  return { count: rows.length };
+  // Native sync is complete before the optional, separate Store push begins.
+  let shopPush = { pushed: 0, failed: rows.length };
+  try {
+    const images = new Map(products.map((product) => [product.id, product.image_url ?? null]));
+    shopPush = await pushFoxgenCatalogue(rows.map((row) => ({ ...row, image_url: images.get(row.id) ?? null })));
+  } catch {
+    logger.warn("FoxGen catalogue push failed, local catalogue retained", { count: rows.length });
+  }
+  return { count: rows.length, shopPush };
 }
 
 /** Sync only when the cache is older than 5 minutes; never throws. */
