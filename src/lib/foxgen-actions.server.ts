@@ -2,7 +2,7 @@ import type { FoxgenAction } from "./foxgen-orders";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 export async function callFoxgenAction(input: FoxgenAction): Promise<ActionResult> {
-  const key = process.env["FOXGEN_SHOP_ACTION_KEY"];
+  const key = process.env["SHOP_CRM_ACTION_KEY"];
   if (!key)
     return {
       ok: false,

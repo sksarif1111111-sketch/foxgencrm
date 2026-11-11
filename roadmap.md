@@ -1,6 +1,6 @@
 # Store connection
-- [ ] Correct the Store action secret name and clarify the existing Settings key control.
-- [ ] Add FoxGen customer profiles, exact buyer-order matching and order-to-profile links; verify owner views.
+- [x] Correct the Store action secret name and clarify the existing Settings key control.
+- [x] Add FoxGen customer profiles, exact buyer-order matching and order-to-profile links; verify owner views with a synced buyer and two orders on desktop/mobile.
 - [x] Create authenticated inbound sync API and owner-managed credentials.
 - [x] Show imported store records without supplier fulfillment.
 - [x] Test authorization, imports, replay handling, and owner views (local signed-in flow verified; real-store flow awaits sender).

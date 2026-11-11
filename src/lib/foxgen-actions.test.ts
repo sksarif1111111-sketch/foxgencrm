@@ -3,7 +3,7 @@ import { callFoxgenAction } from "./foxgen-actions.server";
 
 describe("FoxGen Store action boundary", () => {
   beforeEach(() => {
-    vi.stubEnv("FOXGEN_SHOP_ACTION_KEY", "test-only-fixture");
+    vi.stubEnv("SHOP_CRM_ACTION_KEY", "test-only-fixture");
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -23,6 +23,15 @@ describe("FoxGen Store action boundary", () => {
       order_id: "FG-001234",
     });
     expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]?.[1].headers.Authorization).toBe("Bearer test-only-fixture");
+  });
+  it("requires SHOP_CRM_ACTION_KEY rather than the previous secret name", async () => {
+    vi.stubEnv("SHOP_CRM_ACTION_KEY", "");
+    vi.stubEnv("FOXGEN_SHOP_ACTION_KEY", "old-test-fixture");
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    expect((await callFoxgenAction({ action: "approve", order_id: "FG-001234" })).ok).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
   });
   it("does not mistake an unacknowledged response for success", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({})));

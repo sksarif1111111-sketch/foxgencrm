@@ -46,6 +46,7 @@ export function StoreSyncKeySettings() {
   return (
     <section className="space-y-4 rounded-xl border bg-card p-5 shadow-card">
       <h2 className="flex items-center gap-2 text-lg font-bold"><KeyRound className="size-4 text-primary" />FoxGen Store sync key</h2>
+      <p className="text-sm text-muted-foreground">Copy the key immediately after creating it and save it in FoxGen Store’s Inbound sync key field. It is shown only once and cannot be viewed again.</p>
       {integration.isPending ? <div className="h-9 animate-pulse rounded-md bg-muted" /> : (
         <Button className="w-full" disabled={busy || integration.isError || !!key}
           onClick={() => integration.data ? setConfirm(true) : create()}>

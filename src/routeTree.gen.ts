@@ -20,6 +20,8 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedStoreRouteImport } from './routes/_authenticated/store'
 import { Route as AuthenticatedCustomersIndexRouteImport } from './routes/_authenticated/customers.index'
 import { Route as AuthenticatedCustomersIdRouteImport } from './routes/_authenticated/customers.$id'
+import { Route as AuthenticatedFoxgenCustomersIndexRouteImport } from './routes/_authenticated/foxgen-customers.index'
+import { Route as AuthenticatedFoxgenCustomersIdRouteImport } from './routes/_authenticated/foxgen-customers.$id'
 import { Route as AuthenticatedFoxgenOrdersIndexRouteImport } from './routes/_authenticated/foxgen-orders.index'
 import { Route as AuthenticatedFoxgenOrdersIdRouteImport } from './routes/_authenticated/foxgen-orders.$id'
 import { Route as AuthenticatedOrdersIndexRouteImport } from './routes/_authenticated/orders.index'
@@ -85,6 +87,18 @@ const AuthenticatedCustomersIdRoute =
     path: '/customers/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedFoxgenCustomersIndexRoute =
+  AuthenticatedFoxgenCustomersIndexRouteImport.update({
+    id: '/foxgen-customers/',
+    path: '/foxgen-customers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedFoxgenCustomersIdRoute =
+  AuthenticatedFoxgenCustomersIdRouteImport.update({
+    id: '/foxgen-customers/$id',
+    path: '/foxgen-customers/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedFoxgenOrdersIndexRoute =
   AuthenticatedFoxgenOrdersIndexRouteImport.update({
     id: '/foxgen-orders/',
@@ -140,11 +154,13 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/store': typeof AuthenticatedStoreRoute
   '/customers/$id': typeof AuthenticatedCustomersIdRoute
+  '/foxgen-customers/$id': typeof AuthenticatedFoxgenCustomersIdRoute
   '/foxgen-orders/$id': typeof AuthenticatedFoxgenOrdersIdRoute
   '/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/orders/new': typeof AuthenticatedOrdersNewRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/customers/': typeof AuthenticatedCustomersIndexRoute
+  '/foxgen-customers/': typeof AuthenticatedFoxgenCustomersIndexRoute
   '/foxgen-orders/': typeof AuthenticatedFoxgenOrdersIndexRoute
   '/orders/': typeof AuthenticatedOrdersIndexRoute
   '/api/public/store/sync': typeof ApiPublicStoreSyncRoute
@@ -160,11 +176,13 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/store': typeof AuthenticatedStoreRoute
   '/customers/$id': typeof AuthenticatedCustomersIdRoute
+  '/foxgen-customers/$id': typeof AuthenticatedFoxgenCustomersIdRoute
   '/foxgen-orders/$id': typeof AuthenticatedFoxgenOrdersIdRoute
   '/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/orders/new': typeof AuthenticatedOrdersNewRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/customers': typeof AuthenticatedCustomersIndexRoute
+  '/foxgen-customers': typeof AuthenticatedFoxgenCustomersIndexRoute
   '/foxgen-orders': typeof AuthenticatedFoxgenOrdersIndexRoute
   '/orders': typeof AuthenticatedOrdersIndexRoute
   '/api/public/store/sync': typeof ApiPublicStoreSyncRoute
@@ -182,11 +200,13 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/store': typeof AuthenticatedStoreRoute
   '/_authenticated/customers/$id': typeof AuthenticatedCustomersIdRoute
+  '/_authenticated/foxgen-customers/$id': typeof AuthenticatedFoxgenCustomersIdRoute
   '/_authenticated/foxgen-orders/$id': typeof AuthenticatedFoxgenOrdersIdRoute
   '/_authenticated/orders/$id': typeof AuthenticatedOrdersIdRoute
   '/_authenticated/orders/new': typeof AuthenticatedOrdersNewRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/_authenticated/customers/': typeof AuthenticatedCustomersIndexRoute
+  '/_authenticated/foxgen-customers/': typeof AuthenticatedFoxgenCustomersIndexRoute
   '/_authenticated/foxgen-orders/': typeof AuthenticatedFoxgenOrdersIndexRoute
   '/_authenticated/orders/': typeof AuthenticatedOrdersIndexRoute
   '/api/public/store/sync': typeof ApiPublicStoreSyncRoute
@@ -204,11 +224,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/store'
     | '/customers/$id'
+    | '/foxgen-customers/$id'
     | '/foxgen-orders/$id'
     | '/orders/$id'
     | '/orders/new'
     | '/api/public/health'
     | '/customers/'
+    | '/foxgen-customers/'
     | '/foxgen-orders/'
     | '/orders/'
     | '/api/public/store/sync'
@@ -224,11 +246,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/store'
     | '/customers/$id'
+    | '/foxgen-customers/$id'
     | '/foxgen-orders/$id'
     | '/orders/$id'
     | '/orders/new'
     | '/api/public/health'
     | '/customers'
+    | '/foxgen-customers'
     | '/foxgen-orders'
     | '/orders'
     | '/api/public/store/sync'
@@ -245,11 +269,13 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/store'
     | '/_authenticated/customers/$id'
+    | '/_authenticated/foxgen-customers/$id'
     | '/_authenticated/foxgen-orders/$id'
     | '/_authenticated/orders/$id'
     | '/_authenticated/orders/new'
     | '/api/public/health'
     | '/_authenticated/customers/'
+    | '/_authenticated/foxgen-customers/'
     | '/_authenticated/foxgen-orders/'
     | '/_authenticated/orders/'
     | '/api/public/store/sync'
@@ -345,6 +371,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCustomersIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/foxgen-customers/': {
+      id: '/_authenticated/foxgen-customers/'
+      path: '/foxgen-customers'
+      fullPath: '/foxgen-customers/'
+      preLoaderRoute: typeof AuthenticatedFoxgenCustomersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/foxgen-customers/$id': {
+      id: '/_authenticated/foxgen-customers/$id'
+      path: '/foxgen-customers/$id'
+      fullPath: '/foxgen-customers/$id'
+      preLoaderRoute: typeof AuthenticatedFoxgenCustomersIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/foxgen-orders/': {
       id: '/_authenticated/foxgen-orders/'
       path: '/foxgen-orders'
@@ -411,10 +451,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStoreRoute: typeof AuthenticatedStoreRoute
   AuthenticatedCustomersIdRoute: typeof AuthenticatedCustomersIdRoute
+  AuthenticatedFoxgenCustomersIdRoute: typeof AuthenticatedFoxgenCustomersIdRoute
   AuthenticatedFoxgenOrdersIdRoute: typeof AuthenticatedFoxgenOrdersIdRoute
   AuthenticatedOrdersIdRoute: typeof AuthenticatedOrdersIdRoute
   AuthenticatedOrdersNewRoute: typeof AuthenticatedOrdersNewRoute
   AuthenticatedCustomersIndexRoute: typeof AuthenticatedCustomersIndexRoute
+  AuthenticatedFoxgenCustomersIndexRoute: typeof AuthenticatedFoxgenCustomersIndexRoute
   AuthenticatedFoxgenOrdersIndexRoute: typeof AuthenticatedFoxgenOrdersIndexRoute
   AuthenticatedOrdersIndexRoute: typeof AuthenticatedOrdersIndexRoute
 }
@@ -426,10 +468,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStoreRoute: AuthenticatedStoreRoute,
   AuthenticatedCustomersIdRoute: AuthenticatedCustomersIdRoute,
+  AuthenticatedFoxgenCustomersIdRoute: AuthenticatedFoxgenCustomersIdRoute,
   AuthenticatedFoxgenOrdersIdRoute: AuthenticatedFoxgenOrdersIdRoute,
   AuthenticatedOrdersIdRoute: AuthenticatedOrdersIdRoute,
   AuthenticatedOrdersNewRoute: AuthenticatedOrdersNewRoute,
   AuthenticatedCustomersIndexRoute: AuthenticatedCustomersIndexRoute,
+  AuthenticatedFoxgenCustomersIndexRoute:
+    AuthenticatedFoxgenCustomersIndexRoute,
   AuthenticatedFoxgenOrdersIndexRoute: AuthenticatedFoxgenOrdersIndexRoute,
   AuthenticatedOrdersIndexRoute: AuthenticatedOrdersIndexRoute,
 }

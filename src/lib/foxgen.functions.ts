@@ -9,6 +9,56 @@ import {
   type FoxgenOrder,
 } from "./foxgen-orders";
 import { callFoxgenAction } from "./foxgen-actions.server";
+import { customerOrderCounts, FoxgenCustomerSearch } from "./foxgen-customers";
+
+export const getFoxgenCustomers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => FoxgenCustomerSearch.parse(input))
+  .handler(async ({ data, context }) => {
+    let query = context.supabase.from("store_records").select("*", { count: "exact" })
+      .eq("integration_id", "foxgen").eq("entity", "customers");
+    const term = (data.q ?? "").replace(/[^\p{L}\p{N}\s@._-]/gu, " ").trim();
+    if (term) query = query.or(`name.ilike.%${term}%,external_id.ilike.%${term}%,data->>email.ilike.%${term}%,data->>customer_email.ilike.%${term}%,data->>telegram_username.ilike.%${term}%,data->>telegram_user_id.ilike.%${term}%`);
+    const page = data.page ?? 0;
+    const { data: rows, count, error } = await query.order("source_updated_at", { ascending: false })
+      .order("external_id").range(page * 50, page * 50 + 49);
+    if (error) throw new Error("Could not load FoxGen customers. Try again in a moment.");
+    const customers = rows ?? [];
+    if (!customers.length) return { rows: [], count: count ?? 0 };
+    const orders: Pick<FoxgenOrder, "integration_id" | "entity" | "data">[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const result = await context.supabase.from("store_records").select("integration_id,entity,data")
+        .eq("integration_id", "foxgen").eq("entity", "orders")
+        .in("data->>customer_external_id", customers.map((customer) => customer.external_id))
+        .order("external_id").range(offset, offset + 999);
+      if (result.error) throw new Error("Could not load customer order counts. Try again in a moment.");
+      orders.push(...(result.data ?? []));
+      if (!result.data || result.data.length < 1000) break;
+    }
+    const counts = customerOrderCounts(orders);
+    return { rows: customers.map((customer) => ({ ...customer, orderCount: counts.get(customer.external_id) ?? 0 })), count: count ?? 0 };
+  });
+
+export const getFoxgenCustomer = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().min(1).max(200) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const result = await context.supabase.from("store_records").select("*")
+      .eq("integration_id", "foxgen").eq("entity", "customers").eq("external_id", data.id).maybeSingle();
+    if (result.error) throw new Error("Could not load this FoxGen customer. Try again in a moment.");
+    if (!result.data) return { customer: null, orders: [] };
+    const orders: FoxgenOrder[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const batch = await context.supabase.from("store_records").select("*")
+        .eq("integration_id", "foxgen").eq("entity", "orders")
+        .eq("data->>customer_external_id", result.data.external_id)
+        .order("source_updated_at", { ascending: false }).order("external_id").range(offset, offset + 999);
+      if (batch.error) throw new Error("Could not load this customer's orders. Try again in a moment.");
+      orders.push(...(batch.data ?? []));
+      if (!batch.data || batch.data.length < 1000) break;
+    }
+    return { customer: result.data, orders };
+  });
 
 export const getFoxgenOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

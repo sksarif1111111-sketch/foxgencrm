@@ -1,7 +1,7 @@
 # FoxGen → CRM API
 
 ## Setup
-1. In this CRM, open **FoxGen Store**, create a key, and copy it before dismissing it. Only its hash is stored.
+1. In this CRM, open **Settings → FoxGen Store sync key**, create a key, and copy it immediately before dismissing it. It is shown only once; only its hash is stored. The existing **FoxGen Store** page offers the same key control.
 2. In the FOXGEN project's own Lovable chat, request the sender described below. This project's tools cannot edit that project.
 3. Store the key as the sender's server-only `FOXGEN_CRM_API_KEY` secret; never put it in browser code or a database setting.
 4. Publish this CRM before using the published endpoint. Use the preview endpoint while testing.
@@ -35,4 +35,8 @@ Response: `{ "ok": true, "received": 1, "changed": 1 }`.
 Repeated identical versions are ignored; only a newer source timestamp updates the same entity/ID. Use persistent source IDs and timestamps. Retry the same batch on network errors or 503; do not generate new IDs/timestamps just for retries. 401 means incorrect/replaced/disabled key; 400 means invalid records. Records remain tracking-only in FoxGen Store, separate from supplier orders and existing revenue reports.
 
 ## Sender task for FOXGEN
+For buyer profiles, send `entity: "customers"` with a stable `external_id`, and include the same value as `data.customer_external_id` on every related order. FoxGen Customers displays imported profiles and their exact-match purchase history separately from native CRM customers.
+
+Store operator actions read the server-only `SHOP_CRM_ACTION_KEY` secret in this CRM and call the Store actions endpoint. This is separate from the CRM-generated inbound `fgcrm_...` sync key.
+
 Build a server-side, durable outbox sender to the endpoint above. Read actual source schemas before mapping. Include order items and related payment/customer references in `data`. Publish create/update events for store orders, payments, customers, products, refunds, expenses and inventory. Backfill existing records in batches. Send only after source transactions commit. Retry safely using stable IDs/timestamps, and surface pending/failed syncs to the owner. Use deletion status/tombstones rather than losing history. Never call this CRM's supplier fulfillment. Verify a real store purchase appears in the CRM. The sender has NOT been installed by this CRM project.

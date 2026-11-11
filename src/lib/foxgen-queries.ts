@@ -1,6 +1,18 @@
 import { queryOptions } from "@tanstack/react-query";
-import { getFoxgenMetrics, getFoxgenOrder, getFoxgenOrders } from "./foxgen.functions";
+import { getFoxgenCustomer, getFoxgenCustomers, getFoxgenMetrics, getFoxgenOrder, getFoxgenOrders } from "./foxgen.functions";
 import type { FoxgenFilters } from "./foxgen-orders";
+import type { FoxgenCustomerFilters } from "./foxgen-customers";
+
+export const foxgenCustomerListOptions = (filters: FoxgenCustomerFilters) => queryOptions({
+  queryKey: ["foxgen", "customers", "list", filters],
+  queryFn: () => getFoxgenCustomers({ data: filters }),
+  refetchInterval: 15000,
+});
+export const foxgenCustomerDetailOptions = (id: string) => queryOptions({
+  queryKey: ["foxgen", "customers", "detail", id],
+  queryFn: () => getFoxgenCustomer({ data: { id } }),
+  refetchInterval: 15000,
+});
 
 export const foxgenListOptions = (filters: FoxgenFilters) =>
   queryOptions({

@@ -16,6 +16,7 @@ const NAV = [
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/store", label: "FoxGen Store", icon: Store },
   { to: "/foxgen-orders", label: "FoxGen Store Orders", icon: Receipt },
+  { to: "/foxgen-customers", label: "FoxGen Customers", icon: Users },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

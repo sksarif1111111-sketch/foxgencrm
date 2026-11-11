@@ -42,6 +42,7 @@ import {
   type FoxgenOrder,
 } from "@/lib/foxgen-orders";
 import type { Json } from "@/integrations/supabase/types";
+import { customerExternalId } from "@/lib/foxgen-customers";
 
 export const Route = createFileRoute("/_authenticated/foxgen-orders/$id")({
   loader: ({ context, params }) =>
@@ -172,6 +173,7 @@ function FoxgenDetail() {
   const showDelivery = ["payment_confirmed", "awaiting_fulfillment", "awaiting_email"].includes(
     o.status,
   );
+  const customerId = customerExternalId(o.data);
   return (
     <div className="foxgen-section">
       <Link
@@ -281,8 +283,15 @@ function FoxgenDetail() {
         <section className="border-t pt-4">
           <h2 className="mb-4 text-lg font-semibold">Customer</h2>
           <dl className="grid gap-4 sm:grid-cols-2">
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">Customer name</dt>
+              <dd className="mt-1 break-words text-sm">{customerId ? (
+                <Link to="/foxgen-customers/$id" params={{ id: customerId }} className="font-medium text-primary hover:underline">
+                  {text(d["customer_name"] ?? d["name"] ?? customerId)}
+                </Link>
+              ) : text(d["customer_name"] ?? d["name"])}</dd>
+            </div>
             {Object.entries({
-              "Customer name": d["customer_name"] ?? d["name"],
               "Customer email": d["customer_email"],
               "Delivery emails": d["delivery_emails"],
               "Telegram username": d["telegram_username"],
