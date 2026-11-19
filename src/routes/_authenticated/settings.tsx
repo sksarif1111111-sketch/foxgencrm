@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useForm } from "react-hook-form";
@@ -23,14 +23,22 @@ import { FoxgenConnectionCard } from "@/components/crm/FoxgenMetrics";
 import { StoreSyncKeySettings } from "@/components/crm/StoreSyncKeySettings";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [
-    { title: "Settings \u2014 Digital Store CRM" },
-    { name: "description", content: "Manage store settings, payment details and Telegram owner alerts." },
-    { property: "og:title", content: "Settings \u2014 Digital Store CRM" },
-    { property: "og:description", content: "Manage store settings, payment details and Telegram owner alerts." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "Settings \u2014 FOXGEN CRM" },
+      {
+        name: "description",
+        content: "Manage store settings, payment details and Telegram owner alerts.",
+      },
+      { property: "og:title", content: "Settings \u2014 FOXGEN CRM" },
+      {
+        property: "og:description",
+        content: "Manage store settings, payment details and Telegram owner alerts.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: SettingsPage,
 });
 
@@ -39,7 +47,8 @@ type FormOut = z.output<typeof SettingsSchema>;
 
 function SettingsPage() {
   const qc = useQueryClient();
-  const { data: s } = useSettings();
+  const settings = useSettings();
+  const s = settings.data;
   const form = useForm<FormIn, unknown, FormOut>({ resolver: zodResolver(SettingsSchema) });
   const { register, handleSubmit, reset, watch, setValue, formState } = form;
 
@@ -65,7 +74,11 @@ function SettingsPage() {
 
   async function onSubmit(v: FormOut) {
     const now = new Date().toISOString();
-    const rows = Object.entries(v).map(([key, value]) => ({ key, value: String(value), updated_at: now }));
+    const rows = Object.entries(v).map(([key, value]) => ({
+      key,
+      value: String(value),
+      updated_at: now,
+    }));
     const { error } = await supabase.from("settings").upsert(rows);
     if (error) {
       toast.error(error.message);
@@ -76,13 +89,37 @@ function SettingsPage() {
   }
 
   const err = formState.errors;
+  if (settings.isPending)
+    return (
+      <>
+        <PageHeader title="Settings" />
+        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+      </>
+    );
+  if (settings.isError)
+    return (
+      <>
+        <PageHeader title="Settings" />
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          Could not load settings.
+        </p>
+        <Button variant="outline" onClick={() => settings.refetch()}>
+          Try again
+        </Button>
+      </>
+    );
   return (
     <>
-      <PageHeader title="Settings" description="Store details, payment instructions, alerts and the Telegram bot." />
-      <div className="mb-6"><StoreSyncKeySettings /></div>
+      <PageHeader
+        title="Settings"
+        description="Store details, payment instructions, alerts and the Telegram bot."
+      />
+      <div className="mb-6">
+        <StoreSyncKeySettings />
+      </div>
       <div className="grid gap-6 lg:grid-cols-3">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 lg:col-span-2">
-          <Section title="Store">
+          <Section title="Store information & pricing">
             <Field label="Store name" error={err.store_name?.message}>
               <Input {...register("store_name")} />
             </Field>
@@ -90,14 +127,22 @@ function SettingsPage() {
               <Input {...register("currency_symbol")} className="max-w-[100px]" />
             </Field>
             <Field label="Default markup %">
-              <Input type="number" min={0} {...register("default_markup_percentage")} className="max-w-[140px]" />
+              <Input
+                type="number"
+                min={0}
+                {...register("default_markup_percentage")}
+                className="max-w-[140px]"
+              />
             </Field>
             <Field label="Support contact (shown to customers)">
               <Input placeholder="@yourusername" {...register("support_contact")} />
             </Field>
           </Section>
 
-          <Section title="Payment details shown in the bot" description="Leave a method empty to hide it from customers.">
+          <Section
+            title="Payment details shown in the bot"
+            description="Leave a method empty to hide it from customers."
+          >
             <Field label="UPI ID">
               <Input placeholder="yourname@bank" {...register("upi_id")} />
             </Field>
@@ -112,7 +157,7 @@ function SettingsPage() {
             </Field>
           </Section>
 
-          <Section title="Order handling">
+          <Section title="Delivery settings">
             <ToggleRow
               label="Instant delivery after proof format check"
               description="Off: you approve each bot order (in Telegram or here) before accounts are sent. On: accounts are sent as soon as the transaction ID format looks valid — this cannot confirm the money actually arrived."
@@ -127,8 +172,12 @@ function SettingsPage() {
             />
           </Section>
 
-          <Section title="Alerts">
-            <Field label="Your Telegram chat ID" error={err.owner_telegram_chat_id?.message} hint="Send /myid to your bot to get it. New-order and low-balance alerts go here.">
+          <Section title="Owner alerts">
+            <Field
+              label="Your Telegram chat ID"
+              error={err.owner_telegram_chat_id?.message}
+              hint="Send /myid to your bot to get it. New-order and low-balance alerts go here."
+            >
               <Input inputMode="numeric" {...register("owner_telegram_chat_id")} />
             </Field>
             <Field label="Owner email">
@@ -152,6 +201,11 @@ function SettingsPage() {
         <div className="space-y-6">
           <FoxgenConnectionCard />
           <BotCard />
+          <Section title="Security" description="Owner-only access">
+            <Button asChild variant="outline">
+              <Link to="/reset-password">Change password</Link>
+            </Button>
+          </Section>
           <ApiLog />
         </div>
       </div>
@@ -170,14 +224,20 @@ function BotCard() {
 
   async function connect(target: "preview" | "live") {
     setBusy(true);
-    const r = await register({ data: { target } });
-    setBusy(false);
-    r.ok ? toast.success("Bot connected") : toast.error(r.error ?? "Failed");
-    q.refetch();
+    try {
+      const r = await register({ data: { target } });
+      if (r.ok) toast.success("Bot connected");
+      else toast.error(r.error ?? "Failed");
+      await q.refetch();
+    } catch {
+      toast.error("Could not connect the Telegram bot.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-card">
+    <div className="rounded-lg border bg-card p-5 shadow-card">
       <h2 className="flex items-center gap-2 font-bold">
         <Bot className="size-4 text-primary" /> Telegram bot
       </h2>
@@ -186,16 +246,34 @@ function BotCard() {
       ) : d?.ok ? (
         <div className="mt-3 space-y-2 text-sm">
           <p>
-            <a className="font-semibold text-primary hover:underline" href={`https://t.me/${d.username}`} target="_blank" rel="noreferrer">
+            <a
+              className="font-semibold text-primary hover:underline"
+              href={`https://t.me/${d.username}`}
+              target="_blank"
+              rel="noreferrer"
+            >
               @{d.username}
             </a>{" "}
             · {d.name}
           </p>
           <p className="flex items-center gap-2">
-            Status: {connected ? <Badge variant="success">Receiving messages</Badge> : <Badge variant="warning">Not connected</Badge>}
+            Status:{" "}
+            {connected ? (
+              <Badge variant="success">Receiving messages</Badge>
+            ) : (
+              <Badge variant="warning">Not connected</Badge>
+            )}
           </p>
-          {d.webhookUrl && <p className="break-all text-xs text-muted-foreground">{d.webhookUrl.includes("-dev.") ? "Using the preview version" : "Using the published version"}</p>}
-          {d.lastError && <p className="text-xs text-destructive">Last delivery error: {d.lastError}</p>}
+          {d.webhookUrl && (
+            <p className="break-all text-xs text-muted-foreground">
+              {d.webhookUrl.includes("-dev.")
+                ? "Using the preview version"
+                : "Using the published version"}
+            </p>
+          )}
+          {d.lastError && (
+            <p className="text-xs text-destructive">Last delivery error: {d.lastError}</p>
+          )}
         </div>
       ) : (
         <p className="mt-3 text-sm text-destructive">{d?.error ?? "Bot unreachable"}</p>
@@ -211,7 +289,8 @@ function BotCard() {
           variant="ghost"
           onClick={async () => {
             const r = await test();
-            r.ok ? toast.success("Test alert sent to your Telegram") : toast.error(r.error ?? "Failed");
+            if (r.ok) toast.success("Test alert sent to your Telegram");
+            else toast.error(r.error ?? "Failed");
           }}
         >
           <Send /> Send test alert to me
@@ -225,25 +304,34 @@ function ApiLog() {
   const q = useQuery({
     queryKey: ["api-log"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("api_calls_log").select("*").order("created_at", { ascending: false }).range(0, 14);
+      const { data, error } = await supabase
+        .from("api_calls_log")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(0, 14);
       if (error) throw new Error(error.message);
       return data ?? [];
     },
   });
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-card">
+    <div className="rounded-lg border bg-card p-5 shadow-card">
       <h2 className="font-bold">Supplier API activity</h2>
       {!q.data?.length ? (
         <p className="mt-3 text-sm text-muted-foreground">No calls yet.</p>
       ) : (
         <ul className="mt-3 space-y-2 text-xs">
           {q.data.map((l) => (
-            <li key={l.id} className="flex items-start justify-between gap-2 border-b border-dashed pb-2 last:border-0">
+            <li
+              key={l.id}
+              className="flex items-start justify-between gap-2 border-b border-dashed pb-2 last:border-0"
+            >
               <span>
                 <Badge variant={l.success ? "success" : "danger"}>{l.action}</Badge>
                 {l.error && <span className="ml-2 text-destructive">{l.error}</span>}
               </span>
-              <span className="figure shrink-0 text-muted-foreground">{format(new Date(l.created_at), "dd MMM HH:mm")}</span>
+              <span className="figure shrink-0 text-muted-foreground">
+                {format(new Date(l.created_at), "dd MMM HH:mm")}
+              </span>
             </li>
           ))}
         </ul>
@@ -252,9 +340,17 @@ function ApiLog() {
   );
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
   return (
-    <section className="space-y-4 rounded-xl border bg-card p-5 shadow-card">
+    <section className="space-y-4 rounded-lg border bg-card p-5 shadow-card">
       <div>
         <h2 className="text-lg font-bold">{title}</h2>
         {description && <p className="text-sm text-muted-foreground">{description}</p>}
@@ -264,7 +360,17 @@ function Section({ title, description, children }: { title: string; description?
   );
 }
 
-function Field({ label, hint, error, children }: { label: string; hint?: string | undefined; error?: string | undefined; children: ReactNode }) {
+function Field({
+  label,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  hint?: string | undefined;
+  error?: string | undefined;
+  children: ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
@@ -275,7 +381,17 @@ function Field({ label, hint, error, children }: { label: string; hint?: string 
   );
 }
 
-function ToggleRow({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div>

@@ -60,19 +60,50 @@ export function relatedOrderRecords(records: FoxgenOrder[], orderId: string): Fo
 }
 
 export function connectionSummary(
-  records: Pick<FoxgenOrder, "entity" | "status" | "data" | "received_at">[],
+  records: Pick<FoxgenOrder, "external_id" | "entity" | "status" | "data" | "received_at">[],
 ) {
   const counts: Record<string, number> = {};
   let latest: string | null = null;
+  const members = new Set(
+    records.filter((r) => r.entity === "customers").map((r) => r.external_id),
+  );
+  const exactReferences = new Set<string>();
+  for (const record of records) {
+    if (record.entity !== "payments") continue;
+    const data = marketplaceData(record.data);
+    const linked = data["order_external_id"];
+    if (
+      typeof linked === "string" &&
+      [data["payment_reference"], data["reference"]].some(
+        (value) => typeof value === "string" && value.trim(),
+      )
+    )
+      exactReferences.add(linked);
+  }
   let missingCustomer = 0;
+  let missingPaymentReference = 0;
   let missingPaymentTime = 0;
   for (const r of records) {
     counts[r.entity] = (counts[r.entity] ?? 0) + 1;
     if ((timestamp(r.received_at) ?? 0) > (timestamp(latest) ?? 0)) latest = r.received_at;
     if (r.entity !== "orders") continue;
     const d = marketplaceData(r.data);
-    if (typeof d["customer_external_id"] !== "string" || !d["customer_external_id"].trim())
+    if (typeof d["customer_external_id"] !== "string" || !members.has(d["customer_external_id"]))
       missingCustomer++;
+    const status = canonicalStatus(r.status);
+    if (
+      [
+        "payment_submitted",
+        "under_review",
+        "payment_confirmed",
+        "awaiting_fulfillment",
+        "delayed",
+        "delivered",
+      ].includes(status) &&
+      !(typeof d["payment_reference"] === "string" && d["payment_reference"].trim()) &&
+      !exactReferences.has(r.external_id)
+    )
+      missingPaymentReference++;
     if (
       ["payment_confirmed", "awaiting_fulfillment", "delayed", "delivered"].includes(
         canonicalStatus(r.status),
@@ -81,5 +112,5 @@ export function connectionSummary(
     )
       missingPaymentTime++;
   }
-  return { counts, latest, missingCustomer, missingPaymentTime };
+  return { counts, latest, missingCustomer, missingPaymentTime, missingPaymentReference };
 }

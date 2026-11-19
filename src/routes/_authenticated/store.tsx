@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Copy, KeyRound, RefreshCw, Store } from "lucide-react";
@@ -24,17 +24,19 @@ import { rotateStoreKey, setStoreEnabled } from "@/lib/store-sync.functions";
 import { STORE_ENTITIES, STORE_URL } from "@/lib/store-sync";
 import type { Database } from "@/integrations/supabase/types";
 import { FoxgenConnectionCard } from "@/components/crm/FoxgenMetrics";
+import { visibleStoreFields } from "@/lib/foxgen-presentation";
+import { customerExternalId } from "@/lib/foxgen-customers";
 import { FoxgenConnectionSetup } from "@/components/crm/FoxgenConnectionSetup";
 
 export const Route = createFileRoute("/_authenticated/store")({
   head: () => ({
     meta: [
-      { title: "FoxGen Store connection — Digital Store CRM" },
+      { title: "FoxGen Store connection — FOXGEN CRM" },
       {
         name: "description",
         content: "Review imported FoxGen orders, payments, customers and inventory.",
       },
-      { property: "og:title", content: "FoxGen Store connection — Digital Store CRM" },
+      { property: "og:title", content: "FoxGen Store connection — FOXGEN CRM" },
       {
         property: "og:description",
         content: "Review imported FoxGen orders, payments, customers and inventory.",
@@ -120,7 +122,10 @@ function StorePage() {
       const result = await rotate();
       setKey(result.key);
       setConfirm(false);
-      await qc.invalidateQueries({ queryKey: ["store-integration"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["store-integration"] }),
+        qc.invalidateQueries({ queryKey: ["foxgen", "connection"] }),
+      ]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not create key");
     } finally {
@@ -131,12 +136,14 @@ function StorePage() {
   return (
     <>
       <PageHeader
-        title="FoxGen Store"
+        title="Store Connection"
         description={STORE_URL}
         actions={
           <Button
             variant="outline"
+            disabled={integration.isFetching || records.isFetching}
             onClick={() => {
+              qc.invalidateQueries({ queryKey: ["foxgen", "connection"] });
               integration.refetch();
               records.refetch();
             }}
@@ -145,12 +152,11 @@ function StorePage() {
           </Button>
         }
       />
-      <FoxgenConnectionSetup />
-      <section className="mb-8 space-y-4 border-b pb-6">
+      <section className="mb-5 space-y-4 rounded-lg border bg-card p-4 shadow-card sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Store className="size-5 text-primary" />
-            <h2 className="text-lg font-bold">Store API</h2>
+            <h2 className="text-lg font-bold">Inbound API</h2>
             <Badge variant={d?.enabled && d.last_received_at ? "success" : "warning"}>
               {!d
                 ? "Not configured"
@@ -162,6 +168,7 @@ function StorePage() {
             </Badge>
           </div>
           <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-muted-foreground">Inbound sync</span>
             <Switch
               aria-label="Enable store sync"
               disabled={!d || busy}
@@ -170,7 +177,10 @@ function StorePage() {
                 setBusy(true);
                 try {
                   await enable({ data: { enabled } });
-                  await qc.invalidateQueries({ queryKey: ["store-integration"] });
+                  await Promise.all([
+                    qc.invalidateQueries({ queryKey: ["store-integration"] }),
+                    qc.invalidateQueries({ queryKey: ["foxgen", "connection"] }),
+                  ]);
                 } catch (error) {
                   toast.error(
                     error instanceof Error ? error.message : "Could not update connection",
@@ -205,7 +215,7 @@ function StorePage() {
             aria-label="Store API endpoint"
             readOnly
             value={endpoints[target]}
-            className="min-w-0 flex-1 font-mono text-xs"
+            className="min-w-0 flex-1 basis-40 font-mono text-xs"
           />
           <Button
             size="icon"
@@ -218,7 +228,7 @@ function StorePage() {
           </Button>
         </div>
         {key && (
-          <div className="space-y-2 border border-warning p-4">
+          <div className="space-y-2 rounded-md border border-warning/50 bg-warning/10 p-4">
             <p className="font-medium">New API key — shown once</p>
             <p className="text-sm text-muted-foreground">
               Keep this key private. Existing keys no longer work.
@@ -241,9 +251,11 @@ function StorePage() {
           </div>
         )}
       </section>
+      <FoxgenConnectionSetup />
       <div className="mb-6">
         <FoxgenConnectionCard />
       </div>
+      <h2 className="mb-3 text-lg font-extrabold">Imported records</h2>
       <Tabs
         value={entity}
         onValueChange={(v) => {
@@ -280,7 +292,7 @@ function StorePage() {
       ) : records.isLoading ? (
         <p className="text-muted-foreground">Loading…</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="min-w-0 rounded-lg border bg-card shadow-card">
           <Table>
             <TableHeader>
               <TableRow>
@@ -295,7 +307,37 @@ function StorePage() {
               {records.data?.rows.map((r) => (
                 <TableRow key={r.external_id}>
                   <TableCell className="max-w-64 break-words">
-                    <p className="font-medium">{r.name || r.external_id}</p>
+                    {r.entity === "orders" ? (
+                      <Link
+                        to="/foxgen-orders/$id"
+                        params={{ id: r.external_id }}
+                        className="font-bold text-primary hover:underline"
+                      >
+                        {r.name || r.external_id}
+                      </Link>
+                    ) : r.entity === "customers" ? (
+                      <Link
+                        to="/foxgen-customers/$id"
+                        params={{ id: r.external_id }}
+                        className="font-bold text-primary hover:underline"
+                      >
+                        {r.name || r.external_id}
+                      </Link>
+                    ) : (
+                      <p className="font-bold">{r.name || r.external_id}</p>
+                    )}
+                    {(() => {
+                      const member = customerExternalId(r.data);
+                      return member && ["payments", "refunds"].includes(r.entity) ? (
+                        <Link
+                          to="/foxgen-customers/$id"
+                          params={{ id: member }}
+                          className="block text-xs font-semibold text-primary hover:underline"
+                        >
+                          Member profile
+                        </Link>
+                      ) : null;
+                    })()}
                     <p className="font-mono text-xs text-muted-foreground">{r.external_id}</p>
                   </TableCell>
                   <TableCell>{r.status || "—"}</TableCell>
@@ -359,8 +401,8 @@ function StorePage() {
           <DialogHeader>
             <DialogTitle>{selected?.name || selected?.external_id}</DialogTitle>
           </DialogHeader>
-          <pre className="whitespace-pre-wrap break-words rounded-md bg-muted p-3 font-mono text-xs">
-            {JSON.stringify(selected?.data, null, 2)}
+          <pre className="whitespace-pre-wrap break-all rounded-md bg-muted p-3 font-mono text-xs">
+            {selected ? JSON.stringify(visibleStoreFields(selected.data), null, 2) : ""}
           </pre>
         </DialogContent>
       </Dialog>

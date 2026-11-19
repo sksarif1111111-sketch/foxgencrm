@@ -15,20 +15,31 @@ export function StatCard({ label, value, hint, icon, tone = "default", loading }
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl border p-5 shadow-card",
-        primary ? "bg-ledger border-transparent text-primary-foreground" : "bg-card",
+        "min-w-0 rounded-lg border bg-card p-3.5 shadow-card sm:p-4",
+        primary && "border-primary/25",
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <p className={cn("text-xs font-semibold uppercase tracking-[0.14em]", primary ? "text-primary-foreground/75" : "text-muted-foreground")}>
-          {label}
-        </p>
-        {icon && <span className={cn("[&_svg]:size-4", primary ? "text-highlight" : "text-primary")}>{icon}</span>}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <p className="text-xs font-bold leading-4 text-muted-foreground">{label}</p>
+        {icon && (
+          <span className="grid size-7 shrink-0 place-items-center rounded-md bg-accent text-primary [&_svg]:size-4">
+            {icon}
+          </span>
+        )}
       </div>
-      <div className="figure mt-3 text-3xl font-semibold">
-        {loading ? <span className="inline-block h-8 w-28 animate-pulse rounded bg-current opacity-15" /> : value}
+      <div
+        className={cn(
+          "figure mt-2 min-h-8 break-words text-2xl font-extrabold",
+          primary && "text-primary",
+        )}
+      >
+        {loading ? (
+          <span className="inline-block h-6 w-16 max-w-full animate-pulse rounded bg-muted" />
+        ) : (
+          value
+        )}
       </div>
-      {hint && <div className={cn("mt-2 text-sm", primary ? "text-primary-foreground/80" : "text-muted-foreground")}>{hint}</div>}
+      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { RefreshCw, Store } from "lucide-react";
+import { ArrowUpRight, RefreshCw, Search, Store } from "lucide-react";
 import { PageHeader } from "@/components/crm/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,9 @@ import { DeliveryCountdown } from "@/components/crm/DeliveryCountdown";
 import { FoxgenSource, FoxgenStatus } from "@/components/crm/FoxgenStatus";
 import { FoxgenOrderSkeleton } from "@/components/crm/FoxgenOrderSkeleton";
 import { FOXGEN_STATUSES, FoxgenSearch, orderData, type FoxgenFilters } from "@/lib/foxgen-orders";
+import { Badge } from "@/components/ui/badge";
+import { foxgenDate } from "@/components/crm/FoxgenCustomersShared";
+import { moneyLabel, paymentGroup, PAYMENT_GROUPS } from "@/lib/foxgen-presentation";
 import { foxgenListOptions } from "@/lib/foxgen-queries";
 
 export const Route = createFileRoute("/_authenticated/foxgen-orders/")({
@@ -36,12 +39,12 @@ export const Route = createFileRoute("/_authenticated/foxgen-orders/")({
   notFoundComponent: () => <p>FoxGen order list not found.</p>,
   head: () => ({
     meta: [
-      { title: "FoxGen Store Orders — Digital Store CRM" },
+      { title: "FoxGen Store Orders — FOXGEN CRM" },
       {
         name: "description",
         content: "Manage FoxGen Store payment review and customer delivery deadlines.",
       },
-      { property: "og:title", content: "FoxGen Store Orders — Digital Store CRM" },
+      { property: "og:title", content: "FoxGen Store Orders — FOXGEN CRM" },
       {
         property: "og:description",
         content: "Manage FoxGen Store payment review and customer delivery deadlines.",
@@ -68,12 +71,18 @@ function FoxgenOrders() {
   const navigate = useNavigate({ from: "/foxgen-orders/" });
   const q = useSuspenseQuery(foxgenListOptions(search));
   const page = search.page ?? 0;
+  const filtered = Boolean(
+    search.q ||
+    (search.status && search.status !== "all") ||
+    (search.channel && search.channel !== "all") ||
+    (search.payment && search.payment !== "all"),
+  );
   const set = (patch: Partial<FoxgenFilters>) =>
     navigate({ search: (prev) => ({ ...prev, page: undefined, ...patch }) });
   return (
     <div className="foxgen-section">
       <PageHeader
-        title="FoxGen Store Orders"
+        title="Store Orders"
         description={`${q.data.count} orders`}
         actions={
           <Button variant="outline" disabled={q.isFetching} onClick={() => q.refetch()}>
@@ -82,20 +91,25 @@ function FoxgenOrders() {
           </Button>
         }
       />
-      <div className="mb-4 grid gap-4 border-b pb-4 sm:grid-cols-3">
+      <div className="mb-4 grid min-w-0 gap-3 rounded-lg border bg-card p-4 shadow-card sm:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
         <div>
           <Label htmlFor="fg-search" className="mb-2 block">
             Search
           </Label>
-          <Input
-            id="fg-search"
-            placeholder="Order, customer or email"
-            value={search.q ?? ""}
-            onChange={(e) => set({ q: e.target.value || undefined })}
-          />
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" />
+            <Input
+              id="fg-search"
+              className="pl-9"
+              maxLength={100}
+              placeholder="Order ID, customer ID, name or email"
+              value={search.q ?? ""}
+              onChange={(e) => set({ q: e.target.value || undefined })}
+            />
+          </div>
         </div>
         <div>
-          <Label className="mb-2 block">Status</Label>
+          <Label className="mb-2 block">Order status</Label>
           <Select
             value={search.status ?? "all"}
             onValueChange={(v) => {
@@ -117,6 +131,25 @@ function FoxgenOrders() {
           </Select>
         </div>
         <div>
+          <Label className="mb-2 block">Payment status</Label>
+          <Select
+            value={search.payment ?? "all"}
+            onValueChange={(value) => set({ payment: FoxgenSearch.shape.payment.parse(value) })}
+          >
+            <SelectTrigger aria-label="Filter payment status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All payment statuses</SelectItem>
+              {Object.entries(PAYMENT_GROUPS).map(([key, group]) => (
+                <SelectItem key={key} value={key}>
+                  {group.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <Label className="mb-2 block">Source</Label>
           <Select
             value={search.channel ?? "all"}
@@ -131,7 +164,7 @@ function FoxgenOrders() {
             <SelectContent>
               <SelectItem value="all">All sources</SelectItem>
               <SelectItem value="website">Website</SelectItem>
-              <SelectItem value="bot">Bot</SelectItem>
+              <SelectItem value="bot">Telegram bot</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -142,86 +175,146 @@ function FoxgenOrders() {
         </p>
       )}
       {!q.data.rows.length ? (
-        <section className="border-b py-12 text-center">
+        <section className="rounded-lg border bg-card px-4 py-12 text-center">
           <Store className="mx-auto mb-4 size-8 text-muted-foreground" />
           <h2 className="text-lg font-semibold">
-            {search.q ||
-            (search.status && search.status !== "all") ||
-            (search.channel && search.channel !== "all")
-              ? "No matching orders"
-              : "No FoxGen orders yet"}
+            {filtered ? "No matching orders" : "No FoxGen orders yet"}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {search.q ||
-            (search.status && search.status !== "all") ||
-            (search.channel && search.channel !== "all")
+            {filtered
               ? "No orders match these filters."
               : "Orders will appear when FoxGen Store sends them."}
           </p>
-          <Button asChild variant="outline" className="mt-4">
-            <Link to="/store">Store connection</Link>
-          </Button>
+          {filtered ? (
+            <Button variant="outline" className="mt-4" onClick={() => navigate({ search: {} })}>
+              Clear filters
+            </Button>
+          ) : (
+            <Button asChild variant="outline" className="mt-4">
+              <Link to="/store">Store connection</Link>
+            </Button>
+          )}
         </section>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="min-w-0 rounded-lg border bg-card shadow-card">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Delivery</TableHead>
+                {[
+                  "Order ID",
+                  "Customer",
+                  "Product",
+                  "Source",
+                  "Amount",
+                  "Payment",
+                  "Order status",
+                  "Delivery",
+                  "Created at",
+                  "Action",
+                ].map((label) => (
+                  <TableHead key={label} className="whitespace-nowrap">
+                    {label}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {q.data.rows.map((o) => {
                 const d = orderData(o.data);
+                const payment = paymentGroup(o);
+                const customer =
+                  typeof d["customer_external_id"] === "string" ? d["customer_external_id"] : "";
+                const created = d["created_at"] ?? d["order_created_at"];
+                const orderId = String(d["order_number"] ?? o.external_id);
                 return (
                   <TableRow key={o.external_id}>
-                    <TableCell className="min-w-48 max-w-80">
+                    <TableCell className="min-w-36 max-w-52">
                       <Link
                         to="/foxgen-orders/$id"
                         params={{ id: o.external_id }}
-                        className="font-medium text-primary hover:underline"
+                        className="block break-all font-extrabold text-primary hover:underline"
                       >
-                        {o.name || o.external_id}
+                        {orderId}
                       </Link>
-                      <p className="figure mt-1 break-all text-xs text-muted-foreground">
-                        {o.external_id}
-                      </p>
+                      {orderId !== o.external_id && (
+                        <p
+                          className="mt-1 truncate text-xs text-muted-foreground"
+                          title={o.external_id}
+                        >
+                          {o.external_id}
+                        </p>
+                      )}
                     </TableCell>
-                    <TableCell>
-                      <FoxgenSource data={d} />
-                    </TableCell>
-                    <TableCell className="min-w-40 max-w-64 break-words">
-                      {typeof d["customer_external_id"] === "string" &&
-                      d["customer_external_id"] ? (
+                    <TableCell className="min-w-36 max-w-52 break-words">
+                      {customer ? (
                         <Link
                           to="/foxgen-customers/$id"
-                          params={{ id: d["customer_external_id"] }}
-                          className="text-primary hover:underline"
+                          params={{ id: customer }}
+                          className="block font-semibold text-primary hover:underline"
                         >
-                          {String(d["customer_name"] ?? d["customer_external_id"])}
+                          {String(d["customer_name"] ?? customer)}
+                          <span className="block truncate text-xs font-medium text-muted-foreground">
+                            {String(d["member_number"] ?? customer)}
+                          </span>
                         </Link>
                       ) : (
                         String(d["customer_name"] ?? "—")
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="min-w-32 max-w-56 break-words">
+                      {String(d["product_name"] ?? o.name ?? "—")}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <FoxgenSource data={d} />
+                    </TableCell>
+                    <TableCell className="figure whitespace-nowrap font-bold">
+                      {moneyLabel(o.amount, o.currency)}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {payment ? (
+                        <Badge
+                          variant={
+                            payment === "paid"
+                              ? "success"
+                              : payment === "rejected"
+                                ? "danger"
+                                : payment === "refunded"
+                                  ? "muted"
+                                  : "warning"
+                          }
+                        >
+                          {PAYMENT_GROUPS[payment].label}
+                        </Badge>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <FoxgenStatus status={o.status} />
                     </TableCell>
-                    <TableCell className="figure whitespace-nowrap">
-                      {o.amount == null ? "—" : `${o.currency ?? ""} ${o.amount.toFixed(2)}`}
-                    </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <DeliveryCountdown
                         status={o.status}
                         confirmedAt={d["confirmed_at"]}
                         slaMinutes={d["shop_delivery_sla_minutes"]}
                         deliveredAt={d["delivered_at"]}
                       />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                      {foxgenDate(typeof created === "string" ? created : null)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Open order ${orderId}`}
+                        title="Open order"
+                      >
+                        <Link to="/foxgen-orders/$id" params={{ id: o.external_id }}>
+                          <ArrowUpRight />
+                        </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );

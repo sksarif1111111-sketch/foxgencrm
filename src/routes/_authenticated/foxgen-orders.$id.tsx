@@ -38,6 +38,8 @@ import {
   isBot,
   orderData,
   text,
+  slaMinutes,
+  timestamp,
   type FoxgenAction,
   type FoxgenOrder,
 } from "@/lib/foxgen-orders";
@@ -45,6 +47,12 @@ import type { Json } from "@/integrations/supabase/types";
 import { customerExternalId } from "@/lib/foxgen-customers";
 import { FoxgenOrderActivity } from "@/components/crm/FoxgenOrderActivity";
 import { FoxgenPaymentEvidence } from "@/components/crm/FoxgenPaymentEvidence";
+import {
+  moneyLabel,
+  paymentGroup,
+  PAYMENT_GROUPS,
+  visibleStoreFields,
+} from "@/lib/foxgen-presentation";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/_authenticated/foxgen-orders/$id")({
@@ -56,13 +64,13 @@ export const Route = createFileRoute("/_authenticated/foxgen-orders/$id")({
   notFoundComponent: () => <p>FoxGen order not found.</p>,
   head: () => ({
     meta: [
-      { title: "FoxGen Order Details — Digital Store CRM" },
+      { title: "FoxGen Order Details — FOXGEN CRM" },
       {
         name: "description",
         content:
           "Review a FoxGen order, approve payment and send delivery material to the customer.",
       },
-      { property: "og:title", content: "FoxGen Order Details — Digital Store CRM" },
+      { property: "og:title", content: "FoxGen Order Details — FOXGEN CRM" },
       {
         property: "og:description",
         content:
@@ -181,8 +189,18 @@ function FoxgenDetail() {
     "delayed",
   ].includes(o.status);
   const customerId = customerExternalId(o.data);
+  const confirmed = timestamp(d["confirmed_at"]);
+  const deadline =
+    confirmed === null
+      ? null
+      : new Date(confirmed + slaMinutes(d["shop_delivery_sla_minutes"]) * 60000).toLocaleString();
+  const payment = paymentGroup(o);
+  const date = (value: unknown) => {
+    const at = timestamp(value);
+    return at === null ? null : new Date(at).toLocaleString();
+  };
   return (
-    <div className="foxgen-section">
+    <div className="foxgen-section min-w-0">
       <Link
         to="/foxgen-orders"
         className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -191,7 +209,8 @@ function FoxgenDetail() {
         FoxGen Store Orders
       </Link>
       <PageHeader
-        title={o.name || o.external_id}
+        title={String(d["order_number"] ?? (o.name || o.external_id))}
+        description={o.name || undefined}
         actions={
           <Button variant="outline" disabled={q.isFetching || !!busy} onClick={() => q.refetch()}>
             <RefreshCw className={q.isFetching ? "animate-spin" : ""} />
@@ -199,7 +218,17 @@ function FoxgenDetail() {
           </Button>
         }
       />
-      <p className="figure mb-4 break-all text-sm text-muted-foreground">{o.external_id}</p>
+      <section className="mb-5 rounded-lg border bg-card p-4 shadow-card sm:p-5">
+        <h2 className="mb-4 text-lg font-extrabold">Order overview</h2>
+        <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
+          <Field label="Order ID" value={d["order_number"] ?? o.external_id} />
+          <Field label="External Store ID" value={o.external_id} />
+          <Field label="Total amount" value={moneyLabel(o.amount, o.currency)} />
+          <Field label="Currency" value={o.currency} />
+          <Field label="Created" value={date(d["created_at"] ?? d["order_created_at"])} />
+          <Field label="Last updated" value={date(o.source_updated_at)} />
+        </dl>
+      </section>
       <div className="mb-6 flex flex-wrap gap-2">
         <FoxgenStatus status={o.status} />
         <FoxgenSource data={d} />
@@ -224,6 +253,20 @@ function FoxgenDetail() {
         <p role="alert" className="mb-4 text-sm text-destructive">
           Could not refresh this order. Showing the last received information.
         </p>
+      )}
+      <FoxgenPaymentEvidence key={o.external_id} order={o} />
+      {["under_review", "payment_submitted"].includes(o.status) && (
+        <div className="mb-6 flex items-start gap-3 border-l-2 border-warning py-2 pl-4">
+          <Checkbox
+            id="payment-verified"
+            checked={verified}
+            onCheckedChange={(v) => setVerified(v === true)}
+          />
+          <Label htmlFor="payment-verified" className="text-sm leading-5">
+            I checked the transaction and confirmed the payment was actually received. A screenshot
+            alone is not verification.
+          </Label>
+        </div>
       )}
       <div className="mb-6 flex flex-wrap gap-3">
         {["under_review", "payment_submitted"].includes(o.status) && (
@@ -286,10 +329,8 @@ function FoxgenDetail() {
           </Button>
         )}
       </div>
-      <FoxgenPaymentEvidence key={o.external_id} order={o} />
-      {["under_review", "payment_submitted"].includes(o.status) && <div className="mb-6 flex items-start gap-3 border-l-2 border-warning py-2 pl-4"><Checkbox id="payment-verified" checked={verified} onCheckedChange={v => setVerified(v === true)} /><Label htmlFor="payment-verified" className="text-sm leading-5">I checked the transaction and confirmed the payment was actually received. A screenshot alone is not verification.</Label></div>}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="border-t pt-4">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-3">
+        <section className="min-w-0 rounded-lg border bg-card p-4 shadow-card">
           <h2 className="mb-4 text-lg font-semibold">Customer</h2>
           <dl className="grid gap-4 sm:grid-cols-2">
             <div className="min-w-0">
@@ -308,6 +349,20 @@ function FoxgenDetail() {
                 )}
               </dd>
             </div>
+            {customerId && (
+              <div className="min-w-0">
+                <dt className="text-xs text-muted-foreground">Customer ID</dt>
+                <dd className="mt-1 break-all text-sm">
+                  <Link
+                    to="/foxgen-customers/$id"
+                    params={{ id: customerId }}
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    {text(d["member_number"] ?? customerId)}
+                  </Link>
+                </dd>
+              </div>
+            )}
             {Object.entries({
               "Customer email": d["customer_email"],
               "Delivery emails": d["delivery_emails"],
@@ -318,34 +373,50 @@ function FoxgenDetail() {
             ))}
           </dl>
         </section>
-        <section className="border-t pt-4">
-          <h2 className="mb-4 text-lg font-semibold">Payment and delivery</h2>
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Amount"
-              value={o.amount == null ? null : `${o.currency ?? ""} ${o.amount.toFixed(2)}`}
-            />
+        <section className="min-w-0 rounded-lg border bg-card p-4 shadow-card">
+          <h2 className="mb-4 text-lg font-extrabold">Payment information</h2>
+          <dl className="grid grid-cols-2 gap-4">
+            <Field label="Amount" value={d["payment_amount"] ?? moneyLabel(o.amount, o.currency)} />
             <Field label="Payment method" value={d["payment_method_name"] ?? d["payment_method"]} />
             <Field
               label="Payment status"
-              value={d["payment_status"] ?? o.status.replaceAll("_", " ")}
+              value={payment ? PAYMENT_GROUPS[payment].label : d["payment_status"]}
             />
+            <Field label="Transaction reference" value={d["payment_reference"]} />
             <Field
-              label="Payment reference"
-              value={d["payment_reference"] ?? d["payment_ref"] ?? d["payment_proof"]}
+              label="Submitted"
+              value={date(d["proof_submitted_at"] ?? d["payment_submitted_at"])}
+            />
+            <Field label="Verified" value={date(d["confirmed_at"])} />
+          </dl>
+        </section>
+        <section className="min-w-0 rounded-lg border bg-card p-4 shadow-card">
+          <h2 className="mb-4 text-lg font-extrabold">Delivery management</h2>
+          <dl className="grid grid-cols-2 gap-4">
+            <Field
+              label="Delivery status"
+              value={d["delivery_status"] ?? o.status.replaceAll("_", " ")}
             />
             <Field
               label="Delivery material"
               value={d["has_fulfillment"] === true ? "Available" : "Not added"}
             />
-            <Field label="Payment confirmed" value={d["confirmed_at"]} />
-            <Field label="Delivered at" value={d["delivered_at"]} />
+            <Field label="Confirmation time" value={date(d["confirmed_at"])} />
+            <Field label="Delivery deadline" value={deadline} />
+            <Field label="Completed" value={date(d["delivered_at"])} />
           </dl>
+          <div className="mt-3">
+            <DeliveryCountdown
+              status={o.status}
+              confirmedAt={d["confirmed_at"]}
+              slaMinutes={d["shop_delivery_sla_minutes"]}
+              deliveredAt={d["delivered_at"]}
+            />
+          </div>
         </section>
       </div>
-      <FoxgenOrderActivity id={id} />
-      <section className="mt-6 border-t pt-4">
-        <h2 className="mb-4 text-lg font-semibold">Line items</h2>
+      <section className="mt-5 rounded-lg border bg-card p-4 shadow-card">
+        <h2 className="mb-4 text-lg font-semibold">Products & line items</h2>
         {Array.isArray(d["line_items"] ?? d["items"]) ? (
           <ul className="divide-y">
             {(Array.isArray(d["line_items"])
@@ -358,23 +429,41 @@ function FoxgenDetail() {
                 typeof item === "object" && item !== null && !Array.isArray(item) ? item : {};
               return (
                 <li key={i} className="flex flex-wrap justify-between gap-4 py-3">
-                  <span>{text(value["name"] ?? value["product_name"] ?? item)}</span>
+                  <span className="min-w-0 break-words font-bold">
+                    {text(
+                      value["name"] ??
+                        value["product_name"] ??
+                        (typeof item === "string" ? item : "—"),
+                    )}
+                    <span className="mt-1 block text-xs font-medium text-muted-foreground">
+                      {text(value["product_id"] ?? value["id"])}
+                    </span>
+                  </span>
                   <span className="figure text-sm">
                     {value["quantity"] != null ? `×${text(value["quantity"])}` : ""}{" "}
-                    {text(value["amount"] ?? value["price"] ?? value["total"])}
+                    <span className="block">
+                      Unit: {text(value["unit_price"] ?? value["price"])}
+                    </span>
+                    <span className="block">Total: {text(value["total"] ?? value["amount"])}</span>
                   </span>
                 </li>
               );
             })}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">No line item details received.</p>
+          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Field label="Product" value={d["product_name"] ?? (o.name || null)} />
+            <Field label="Product ID" value={d["product_id"]} />
+            <Field label="Quantity" value={d["quantity"]} />
+            <Field label="Unit price" value={d["unit_price"]} />
+          </dl>
         )}
       </section>
-      <details className="mt-6 border-t pt-4">
-        <summary className="cursor-pointer text-sm font-medium">All Store information</summary>
+      <FoxgenOrderActivity id={id} order={source} />
+      <details className="mt-5 border-t pt-4">
+        <summary className="cursor-pointer text-sm font-medium">Imported order fields</summary>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-          {Object.entries(d).map(([label, value]) => (
+          {Object.entries(visibleStoreFields(o.data)).map(([label, value]) => (
             <Field key={label} label={label.replaceAll("_", " ")} value={value} />
           ))}
         </dl>
@@ -475,7 +564,7 @@ function Field({ label, value }: { label: string; value: unknown }) {
   return (
     <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 whitespace-pre-wrap break-words text-sm">{text(value)}</dd>
+      <dd className="mt-1 whitespace-pre-wrap break-all text-sm">{text(value)}</dd>
     </div>
   );
 }

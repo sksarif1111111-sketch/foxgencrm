@@ -24,3 +24,9 @@
 - [x] Add shared delivery clock, Dashboard metrics and connection status.
 - [x] Verify rules and authenticated empty list, Dashboard and Settings on desktop/mobile; keep native fulfillment unchanged. Action boundary tests use mocked Store responses.
 - [ ] Verify live Store delivery (blocked: requires a Store order eligible for delivery and permission to notify its customer; populated order/customer navigation is verified).
+
+# FOXGEN CRM redesign
+- [x] Apply shared branding and navigation across CRM pages.
+- [x] Improve the dashboard, Store order and member workspaces, and connection diagnostics without changing transaction rules.
+- [x] Verify owner search, real Store order/member navigation, filters, wallet tabs, signed-out evidence denial and report date controls at 390, 430, 768, 903, 1280 and 1600 px.
+- [ ] Independently managed product creation, duplication, publication and archiving are not supported by the native supplier cache; they require a separate catalogue ownership model so the supplier sync cannot overwrite them.

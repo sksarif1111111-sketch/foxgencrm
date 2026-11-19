@@ -70,12 +70,27 @@ describe("marketplace compatibility", () => {
       ),
     ).toEqual([match]);
   });
+  it("does not count exact linked payment references or unsubmitted orders as missing", () => {
+    expect(
+      connectionSummary([
+        row("proof_submitted", {}),
+        row("approved", { order_external_id: "order-80", reference: "ABC" }, "payments"),
+        { ...row("awaiting_payment", {}), external_id: "order-81" },
+      ]).missingPaymentReference,
+    ).toBe(0);
+  });
   it("flags missing customer references and verified payment times", () => {
     expect(
       connectionSummary([
         row("processing", {}),
         row("awaiting_payment", { customer_external_id: "member-1" }),
+        { ...row("active", {}, "customers"), external_id: "member-1" },
       ]),
-    ).toMatchObject({ counts: { orders: 2 }, missingCustomer: 1, missingPaymentTime: 1 });
+    ).toMatchObject({
+      counts: { orders: 2 },
+      missingCustomer: 1,
+      missingPaymentTime: 1,
+      missingPaymentReference: 1,
+    });
   });
 });

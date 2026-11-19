@@ -27,3 +27,6 @@
 - Store integration keys are generated for the owner, shown once, and stored only as SHA-256 hashes; the public sync handler verifies the key before privileged access. Why: authenticate external writes without exposing CRM login or raw credentials.
 - Marketplace status/timestamp aliases are read-side compatibility only; payment/refund histories match exact order_external_id and diagnostics expose only counts/configured flags. Why: support evolving Store events without inventing financial state, leaking secrets or mixing wallet deposits with purchases.
 - Order detail may fill an absent transaction reference from the newest exact-order-linked payment, never from refunds or customer-only deposits. Why: show separately synced evidence without manufacturing payment state or crossing customer orders.
+
+- CRM navigation, page hierarchy, tables and metric cards use the shared shell and semantic theme tokens; keep route-specific styling focused on information layout. Why: preserve consistent behavior and responsiveness across existing workflows.
+- Store workspace filters and summaries are read-only projections of owner-authorized data; member totals use exact IDs and separate currencies, and timelines use explicit event timestamps. Why: avoid inventing financial or operational state.

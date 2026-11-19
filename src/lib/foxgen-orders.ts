@@ -23,6 +23,10 @@ export const FoxgenSearch = z.object({
     .enum(["all", ...FOXGEN_STATUSES])
     .optional()
     .catch(undefined),
+  payment: z
+    .enum(["all", "pending", "review", "paid", "rejected", "refunded"])
+    .optional()
+    .catch(undefined),
   channel: z.enum(["all", "website", "bot"]).optional().catch(undefined),
   page: z.number().int().min(0).optional().catch(undefined),
 });

@@ -34,9 +34,9 @@ export function FoxgenConnectionSetup() {
     }
   }
   return (
-    <section className="mb-6 space-y-4 border-b pb-6">
+    <section className="mb-5 space-y-4 rounded-lg border bg-card p-4 shadow-card sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">FOXGEN AI STORE connection</h2>
+        <h2 className="text-lg font-semibold">Integration diagnostics</h2>
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -60,7 +60,7 @@ export function FoxgenConnectionSetup() {
         </div>
       </div>
       {query.isPending ? (
-        <p className="text-sm text-muted-foreground">Checking connection…</p>
+        <div aria-label="Checking connection" className="h-24 animate-pulse rounded-md bg-muted" />
       ) : query.isError ? (
         <p role="alert" className="text-sm text-destructive">
           Could not check the connection. Try again.
@@ -78,14 +78,16 @@ export function FoxgenConnectionSetup() {
                   : "Store action key missing"}
               </Badge>
             </div>
-            <dl className="grid gap-4 sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
               {[
                 ["Members", data.counts["customers"] ?? 0],
                 ["Orders", data.counts["orders"] ?? 0],
                 ["Payments", data.counts["payments"] ?? 0],
                 ["Refunds", data.counts["refunds"] ?? 0],
+                ["Products", data.counts["products"] ?? 0],
+                ["Inventory", data.counts["inventory"] ?? 0],
               ].map(([label, count]) => (
-                <div key={label}>
+                <div key={label} className="rounded-md border bg-muted/50 p-3">
                   <dt className="text-xs text-muted-foreground">{label}</dt>
                   <dd className="figure mt-1 text-xl font-semibold">{count}</dd>
                 </div>
@@ -95,12 +97,18 @@ export function FoxgenConnectionSetup() {
               Last import:{" "}
               {data.latest ? new Date(data.latest).toLocaleString() : "No records received"}
             </p>
-            {(data.missingCustomer > 0 || data.missingPaymentTime > 0) && (
-              <p role="status" className="text-sm text-destructive">
-                Store data needs attention: {data.missingCustomer} orders missing member links;{" "}
-                {data.missingPaymentTime} verified/processing orders missing payment timestamps.
-              </p>
-            )}
+            <dl className="grid gap-2 border-t pt-3 text-sm sm:grid-cols-3">
+              {[
+                ["Missing member links", data.missingCustomer],
+                ["Missing payment references", data.missingPaymentReference],
+                ["Missing verified payment times", data.missingPaymentTime],
+              ].map(([label, count]) => (
+                <div key={label}>
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="figure mt-1 font-bold">{count}</dd>
+                </div>
+              ))}
+            </dl>
           </>
         )
       )}
@@ -122,7 +130,10 @@ export function FoxgenConnectionSetup() {
           <li>
             Publish the CRM changes, then check a real order here and open its member profile.
           </li>
-          <li>Enable private proof sharing in the Store using the copied setup; then submit a real Telegram screenshot and verify it on the matching CRM order before approving.</li>
+          <li>
+            Enable private proof sharing in the Store using the copied setup; then submit a real
+            Telegram screenshot and verify it on the matching CRM order before approving.
+          </li>
         </ol>
       </details>
     </section>

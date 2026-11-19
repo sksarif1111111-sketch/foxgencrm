@@ -4,14 +4,15 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FoxgenBrand } from "@/components/crm/FoxgenBrand";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
-      { title: "Set a new password — Digital Store CRM" },
+      { title: "Set a new password — FOXGEN CRM" },
       { name: "description", content: "Choose a new password for your owner account." },
-      { property: "og:title", content: "Set a new password — Digital Store CRM" },
+      { property: "og:title", content: "Set a new password — FOXGEN CRM" },
       { property: "og:description", content: "Choose a new password for your owner account." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -53,12 +54,27 @@ function ResetPassword() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
-      <form onSubmit={submit} className="w-full max-w-sm space-y-5">
+      <form
+        onSubmit={submit}
+        className="w-full max-w-md space-y-5 rounded-lg border bg-card p-6 shadow-card sm:p-8"
+      >
+        <FoxgenBrand />
         <h1 className="text-3xl font-bold">Set a new password</h1>
-        {!ready && <p className="text-sm text-muted-foreground">Open this page from the reset link in your email.</p>}
+        {!ready && (
+          <p className="text-sm text-muted-foreground">
+            Open this page from the reset link in your email.
+          </p>
+        )}
         <div className="space-y-2">
           <Label htmlFor="pw">New password</Label>
-          <Input id="pw" type="password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input
+            id="pw"
+            type="password"
+            minLength={8}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
         <Button type="submit" className="w-full" disabled={busy || !ready}>
           {busy ? "Saving…" : "Save password"}
