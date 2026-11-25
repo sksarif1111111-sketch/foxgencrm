@@ -3,13 +3,19 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   ActionSchema,
+  CustomerActionSchema,
   allowedAction,
   FoxgenSearch,
   foxgenMetrics,
   type FoxgenOrder,
 } from "./foxgen-orders";
 import { callFoxgenAction } from "./foxgen-actions.server";
-import { customerOrderCounts, FoxgenCustomerSearch, memberPayments } from "./foxgen-customers";
+import {
+  customerOrderCounts,
+  FoxgenCustomerSearch,
+  memberPayments,
+  snapshotNumber,
+} from "./foxgen-customers";
 import { memberSpending, PAYMENT_GROUPS } from "./foxgen-presentation";
 import { orderPaymentData } from "./foxgen-payment-evidence";
 import {
@@ -45,7 +51,11 @@ export const getFoxgenWorkspace = createServerFn({ method: "GET" })
 
 export const getFoxgenPaymentProof = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().min(1).max(200) }).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({ id: z.string().min(1).max(200), kind: z.enum(["order", "topup"]).default("order") })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     const role = await context.supabase.rpc("has_role", {
       _user_id: context.userId,
@@ -54,12 +64,14 @@ export const getFoxgenPaymentProof = createServerFn({ method: "POST" })
     if (role.error || !role.data) throw new Error("Only the owner can view payment proofs.");
     const order = await context.supabase
       .from("store_records")
-      .select("external_id")
+      .select("external_id,data")
       .eq("integration_id", "foxgen")
-      .eq("entity", "orders")
+      .eq("entity", data.kind === "topup" ? "payments" : "orders")
       .eq("external_id", data.id)
       .maybeSingle();
     if (order.error || !order.data) throw new Error("This order is unavailable.");
+    if (data.kind === "topup" && marketplaceData(order.data.data)["order_external_id"])
+      throw new Error("This payment belongs to an order, not a wallet top-up.");
     const key = process.env["SHOP_CRM_ACTION_KEY"];
     if (!key)
       return {
@@ -68,7 +80,7 @@ export const getFoxgenPaymentProof = createServerFn({ method: "POST" })
       };
     try {
       const { fetchStoreProof } = await import("./foxgen-proof.server");
-      return await fetchStoreProof(data.id, key);
+      return await fetchStoreProof(data.id, key, data.kind);
     } catch {
       return {
         ok: false as const,
@@ -86,10 +98,32 @@ export const getFoxgenCustomers = createServerFn({ method: "GET" })
       .select("*", { count: "exact" })
       .eq("integration_id", "foxgen")
       .eq("entity", "customers");
-    const term = (data.q ?? "").replace(/[^\p{L}\p{N}\s@._-]/gu, " ").trim();
+    const term = (data.q ?? "")
+      .replace(/[^\p{L}\p{N}\s@._-]/gu, " ")
+      .trim()
+      .replace(/^@/, "");
+    const orderCustomerIds = new Set<string>();
+    if (/^FG-/i.test(term)) {
+      for (let offset = 0; ; offset += 1000) {
+        const linked = await context.supabase
+          .from("store_records")
+          .select("data")
+          .eq("integration_id", "foxgen")
+          .eq("entity", "orders")
+          .or(`external_id.ilike.%${term}%,data->>order_number.ilike.%${term}%`)
+          .order("external_id")
+          .range(offset, offset + 999);
+        if (linked.error) throw new Error("Could not search by order number.");
+        for (const order of linked.data ?? []) {
+          const id = marketplaceData(order.data)["customer_external_id"];
+          if (typeof id === "string" && /^[a-zA-Z0-9_-]+$/.test(id)) orderCustomerIds.add(id);
+        }
+        if (!linked.data || linked.data.length < 1000) break;
+      }
+    }
     if (term)
       query = query.or(
-        `name.ilike.%${term}%,external_id.ilike.%${term}%,data->>member_number.ilike.%${term}%,data->>email.ilike.%${term}%,data->>customer_email.ilike.%${term}%,data->>telegram_username.ilike.%${term}%,data->>telegram_user_id.ilike.%${term}%`,
+        `name.ilike.%${term}%,external_id.ilike.%${term}%,data->>member_number.ilike.%${term}%,data->>email.ilike.%${term}%,data->>customer_email.ilike.%${term}%,data->>telegram_username.ilike.%${term}%,data->>telegram_user_id.ilike.%${term}%${orderCustomerIds.size ? `,external_id.in.(${[...orderCustomerIds].join(",")})` : ""}`,
       );
     const page = data.page ?? 0;
     const filtered = data.orders === "with" || data.orders === "without";
@@ -145,7 +179,9 @@ export const getFoxgenCustomers = createServerFn({ method: "GET" })
         const history = byCustomer.get(customer.external_id) ?? [];
         return {
           ...customer,
-          orderCount: counts.get(customer.external_id) ?? 0,
+          orderCount:
+            snapshotNumber(customer.data, "total_orders") ?? counts.get(customer.external_id) ?? 0,
+          lastOrder: orderDataLastOrder(customer.data, history),
           spending: memberSpending(history),
           lastActivity: history.reduce(
             (latest, order) =>
@@ -171,7 +207,7 @@ export const getFoxgenCustomer = createServerFn({ method: "GET" })
       .maybeSingle();
     if (result.error)
       throw new Error("Could not load this FoxGen customer. Try again in a moment.");
-    if (!result.data) return { customer: null, orders: [], payments: [] };
+    if (!result.data) return { customer: null, orders: [], payments: [], messages: [] };
     const orders: FoxgenOrder[] = [];
     for (let offset = 0; ; offset += 1000) {
       const batch = await context.supabase
@@ -204,11 +240,93 @@ export const getFoxgenCustomer = createServerFn({ method: "GET" })
       payments.push(...(batch.data ?? []));
       if (!batch.data || batch.data.length < 1000) break;
     }
+    const messages = [];
+    for (let offset = 0; ; offset += 1000) {
+      const receipts = await context.supabase
+        .from("store_message_receipts")
+        .select("*")
+        .eq("customer_external_id", result.data.external_id)
+        .order("created_at", { ascending: false })
+        .order("request_id")
+        .range(offset, offset + 999);
+      if (receipts.error) throw new Error("Could not load sent message history.");
+      messages.push(...(receipts.data ?? []));
+      if (!receipts.data || receipts.data.length < 1000) break;
+    }
     return {
       customer: result.data,
-      orders,
+      messages,
+      orders: orders.map((order) => ({
+        ...order,
+        data: orderPaymentData(order, payments) as FoxgenOrder["data"],
+      })),
       payments: memberPayments(payments, result.data.external_id),
     };
+  });
+function orderDataLastOrder(data: FoxgenOrder["data"], history: { data: FoxgenOrder["data"] }[]) {
+  const snapshot = marketplaceData(data)["last_order_at"];
+  if (typeof snapshot === "string") return snapshot;
+  return (
+    history
+      .map(
+        (order) =>
+          marketplaceData(order.data)["created_at"] ??
+          marketplaceData(order.data)["order_created_at"],
+      )
+      .filter((at): at is string => typeof at === "string")
+      .sort()
+      .at(-1) ?? null
+  );
+}
+
+export const operateFoxgenCustomer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => CustomerActionSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const role = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (role.error || !role.data)
+      return { ok: false as const, error: "Only the owner can manage Store customers." };
+    const customer = await context.supabase
+      .from("store_records")
+      .select("external_id")
+      .eq("integration_id", "foxgen")
+      .eq("entity", "customers")
+      .eq("external_id", data.customer_id)
+      .maybeSingle();
+    if (customer.error || !customer.data)
+      return { ok: false as const, error: "This Store customer is unavailable." };
+    if (data.action === "message_customer" && data.order_id) {
+      const order = await context.supabase
+        .from("store_records")
+        .select("external_id")
+        .eq("integration_id", "foxgen")
+        .eq("entity", "orders")
+        .eq("external_id", data.order_id)
+        .eq("data->>customer_external_id", data.customer_id)
+        .maybeSingle();
+      if (order.error || !order.data)
+        return { ok: false as const, error: "This order does not belong to this customer." };
+    }
+    const result = await callFoxgenAction(data);
+    if (result.ok && data.action === "message_customer") {
+      // This privileged write follows both the owner and exact customer/order checks above.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const receipt = await supabaseAdmin.from("store_message_receipts").upsert(
+        {
+          request_id: data.request_id,
+          customer_external_id: data.customer_id,
+          order_external_id: data.order_id ?? null,
+          message: data.message,
+          channels: result.channels ?? {},
+        },
+        { onConflict: "request_id", ignoreDuplicates: true },
+      );
+      return { ...result, historySaved: !receipt.error };
+    }
+    return result;
   });
 
 export const getFoxgenOrders = createServerFn({ method: "GET" })

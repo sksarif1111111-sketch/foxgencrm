@@ -22,6 +22,13 @@
       "when": 1794257538570,
       "tag": "0002_store_sync_integration",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795585737603,
+      "tag": "0003_store_customer_message_receipts",
+      "breakpoints": true
     }
   ]
 }

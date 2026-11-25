@@ -277,6 +277,33 @@ export type Database = {
         }
         Relationships: []
       }
+      store_message_receipts: {
+        Row: {
+          channels: Json
+          created_at: string
+          customer_external_id: string
+          message: string
+          order_external_id: string | null
+          request_id: string
+        }
+        Insert: {
+          channels?: Json
+          created_at?: string
+          customer_external_id: string
+          message: string
+          order_external_id?: string | null
+          request_id: string
+        }
+        Update: {
+          channels?: Json
+          created_at?: string
+          customer_external_id?: string
+          message?: string
+          order_external_id?: string | null
+          request_id?: string
+        }
+        Relationships: []
+      }
       store_records: {
         Row: {
           amount: number | null

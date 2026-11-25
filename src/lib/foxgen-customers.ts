@@ -2,11 +2,26 @@ import { z } from "zod";
 import { orderData, type FoxgenOrder } from "./foxgen-orders";
 
 export const FoxgenCustomerSearch = z.object({
-  q: z.string().max(100).optional().catch(undefined),
+  q: z.preprocess(
+    (value) => (typeof value === "number" && Number.isFinite(value) ? String(value) : value),
+    z.string().max(100).optional().catch(undefined),
+  ),
   orders: z.enum(["all", "with", "without"]).optional().catch(undefined),
   page: z.number().int().min(0).optional().catch(undefined),
 });
 export type FoxgenCustomerFilters = z.infer<typeof FoxgenCustomerSearch>;
+
+export function snapshotNumber(data: FoxgenOrder["data"], key: string): number | null {
+  const value = orderData(data)[key];
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+export function telegramChatUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const username = value.replace(/^@/, "");
+  return /^[a-zA-Z0-9_]{5,32}$/.test(username) ? `https://t.me/${username}` : null;
+}
 
 export function memberNumber(customer: Pick<FoxgenOrder, "external_id" | "data">): string {
   const value = orderData(customer.data)["member_number"];

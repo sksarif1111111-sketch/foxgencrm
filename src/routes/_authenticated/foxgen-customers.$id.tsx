@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowLeft, RefreshCw } from "lucide-react";
@@ -22,7 +23,14 @@ import {
 } from "@/components/ui/table";
 import { orderData, text } from "@/lib/foxgen-orders";
 import { foxgenCustomerDetailOptions } from "@/lib/foxgen-queries";
-import { memberNumber, walletBalance } from "@/lib/foxgen-customers";
+import { FoxgenCustomerActions, type MessageReceipt } from "@/components/crm/FoxgenCustomerActions";
+import { FoxgenPaymentEvidence } from "@/components/crm/FoxgenPaymentEvidence";
+import {
+  memberNumber,
+  walletBalance,
+  snapshotNumber,
+  telegramChatUrl,
+} from "@/lib/foxgen-customers";
 
 export const Route = createFileRoute("/_authenticated/foxgen-customers/$id")({
   loader: ({ context, params }) =>
@@ -53,7 +61,8 @@ export const Route = createFileRoute("/_authenticated/foxgen-customers/$id")({
 function FoxgenCustomerProfile() {
   const { id } = Route.useParams();
   const query = useSuspenseQuery(foxgenCustomerDetailOptions(id));
-  const { customer, orders, payments } = query.data;
+  const { customer, orders, payments, messages } = query.data;
+  const [sentMessages, setSentMessages] = useState<MessageReceipt[]>([]);
   if (!customer)
     return (
       <div className="space-y-4">
@@ -75,6 +84,20 @@ function FoxgenCustomerProfile() {
         : null,
   );
   const memberId = memberNumber(customer);
+  const chatUrl = telegramChatUrl(data["telegram_username"]);
+  const spentSnapshot = data["total_spent"];
+  const spent =
+    spentSnapshot && typeof spentSnapshot === "object" && !Array.isArray(spentSnapshot)
+      ? Object.entries(spentSnapshot)
+          .filter(([, value]) => typeof value === "number")
+          .map(([currency, value]) => moneyLabel(Number(value), currency))
+          .join(" · ") || "—"
+      : memberSpending(orders);
+  const importedMessages = Array.isArray(data["messages_sent"])
+    ? data["messages_sent"].filter(
+        (value) => value && typeof value === "object" && !Array.isArray(value),
+      )
+    : [];
   const funding = payments.filter((payment) => !orderData(payment.data)["order_external_id"]);
   const activity = [...orders, ...payments].sort((a, b) =>
     b.source_updated_at.localeCompare(a.source_updated_at),
@@ -82,7 +105,7 @@ function FoxgenCustomerProfile() {
   const fields = {
     "Customer ID": memberId,
     "External customer ID": customer.external_id,
-    Joined: foxgenDate(typeof data["joined_at"] === "string" ? data["joined_at"] : null),
+    Joined: foxgenDate(data["joined_at"] ?? data["first_seen_at"]),
     "Account email": data["email"] ?? data["customer_email"],
     "Telegram ID": data["telegram_user_id"],
     "Telegram username": data["telegram_username"],
@@ -175,6 +198,29 @@ function FoxgenCustomerProfile() {
           ))}
         </dl>
       </div>
+      {chatUrl && (
+        <Button asChild variant="outline" size="sm" className="mb-4">
+          <a href={chatUrl} target="_blank" rel="noreferrer">
+            Open Telegram chat
+          </a>
+        </Button>
+      )}
+      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard tone="primary" label="Wallet balance" value={balanceLabel} />
+        <StatCard label="Credits" value={snapshotNumber(customer.data, "credit_balance") ?? "—"} />
+        <StatCard label="Total spent" value={<span className="text-base">{spent}</span>} />
+        <StatCard
+          label="Total orders"
+          value={snapshotNumber(customer.data, "total_orders") ?? orders.length}
+        />
+      </div>
+      <FoxgenCustomerActions
+        key={id}
+        customerId={id}
+        data={customer.data}
+        wallet={data["channel"] === "telegram" || !!data["telegram_user_id"]}
+        onMessage={(receipt) => setSentMessages((values) => [receipt, ...values])}
+      />
       {query.isRefetchError && (
         <p role="alert" className="mb-4 text-sm text-destructive">
           Could not refresh this member. Showing the last received information.
@@ -184,24 +230,13 @@ function FoxgenCustomerProfile() {
         <div className="overflow-x-auto">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="orders">Order History</TabsTrigger>
-            <TabsTrigger value="wallet">Wallet & Funds</TabsTrigger>
+            <TabsTrigger value="orders">Orders</TabsTrigger>
+            <TabsTrigger value="wallet">Wallet top-ups</TabsTrigger>
+            <TabsTrigger value="messages">Messages sent</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            <StatCard tone="primary" label="Wallet balance" value={balanceLabel} />
-            <StatCard
-              label="Total orders"
-              value={orders.length}
-              hint={orders.length ? undefined : "No orders yet"}
-            />
-            <StatCard
-              label="Completed spending"
-              value={<span className="text-lg">{memberSpending(orders)}</span>}
-            />
-          </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="rounded-lg border bg-card p-4 shadow-card">
               <h2 className="mb-4 font-extrabold">Member details</h2>
@@ -230,7 +265,16 @@ function FoxgenCustomerProfile() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {["Order ID", "Product", "Source", "Status", "Amount", "Created"].map((label) => (
+                  {[
+                    "Order ID",
+                    "Product",
+                    "Source",
+                    "Status",
+                    "Transaction ID",
+                    "Screenshot",
+                    "Amount",
+                    "Created",
+                  ].map((label) => (
                     <TableHead key={label}>{label}</TableHead>
                   ))}
                 </TableRow>
@@ -258,6 +302,12 @@ function FoxgenCustomerProfile() {
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         <FoxgenStatus status={order.status} />
+                      </TableCell>
+                      <TableCell className="figure max-w-52 break-all">
+                        {text(info["payment_reference"] ?? info["transaction_id"])}
+                      </TableCell>
+                      <TableCell>
+                        <FoxgenPaymentEvidence key={order.external_id} order={order} compact />
                       </TableCell>
                       <TableCell className="figure whitespace-nowrap">
                         {moneyLabel(order.amount, order.currency)}
@@ -287,6 +337,7 @@ function FoxgenCustomerProfile() {
                     <TableHead>Reference</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Screenshot</TableHead>
                     <TableHead>Updated</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -309,6 +360,14 @@ function FoxgenCustomerProfile() {
                         <TableCell>
                           <FoxgenStatus status={payment.status} />
                         </TableCell>
+                        <TableCell>
+                          <FoxgenPaymentEvidence
+                            key={payment.external_id}
+                            order={payment}
+                            kind="topup"
+                            compact
+                          />
+                        </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {foxgenDate(payment.source_updated_at)}
                         </TableCell>
@@ -319,6 +378,43 @@ function FoxgenCustomerProfile() {
               </Table>
             )}
           </section>
+        </TabsContent>
+        <TabsContent value="messages" className="min-w-0 border-t py-4">
+          <h2 className="mb-3 font-semibold">Messages sent</h2>
+          {!sentMessages.length && !importedMessages.length && !messages.length && (
+            <p className="text-sm text-muted-foreground">
+              No message history received from the Store.
+            </p>
+          )}
+          <ul className="divide-y">
+            {sentMessages
+              .filter((message) => !messages.some((receipt) => receipt.request_id === message.id))
+              .map((message) => (
+                <li key={message.id} className="py-3">
+                  <p className="whitespace-pre-wrap break-words text-sm">{message.message}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {foxgenDate(message.at)} ·{" "}
+                    {Object.entries(message.channels)
+                      .map(([channel, status]) => `${channel}: ${status.replaceAll("_", " ")}`)
+                      .join(" · ")}
+                  </p>
+                </li>
+              ))}
+            {importedMessages.map((value, index) => {
+              const message =
+                value && typeof value === "object" && !Array.isArray(value) ? value : {};
+              return (
+                <li key={index} className="py-3">
+                  <p className="whitespace-pre-wrap break-words text-sm">
+                    {text(message["message"] ?? message["body"])}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {foxgenDate(message["sent_at"] ?? message["created_at"])}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
         </TabsContent>
         <TabsContent value="activity" className="rounded-lg border bg-card p-4 shadow-card">
           <h2 className="mb-2 font-extrabold">Member activity</h2>
@@ -331,6 +427,19 @@ function FoxgenCustomerProfile() {
                   <dt className="text-xs text-muted-foreground">{label.replaceAll("_", " ")}</dt>
                   <dd className="mt-1 break-all text-sm">{text(value)}</dd>
                 </div>
+              ))}
+              {messages.map((receipt) => (
+                <li key={receipt.request_id} className="py-3">
+                  <p className="whitespace-pre-wrap break-words text-sm">{receipt.message}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {foxgenDate(receipt.created_at)} ·{" "}
+                    {Object.entries(orderData(receipt.channels))
+                      .map(
+                        ([channel, status]) => `${channel}: ${text(status).replaceAll("_", " ")}`,
+                      )
+                      .join(" · ")}
+                  </p>
+                </li>
               ))}
             </dl>
           </details>

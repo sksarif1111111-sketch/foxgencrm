@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FoxgenSource } from "@/components/crm/FoxgenStatus";
 import { moneyLabel } from "@/lib/foxgen-presentation";
 import { foxgenCustomerListOptions } from "@/lib/foxgen-queries";
 
@@ -86,7 +87,7 @@ function FoxgenCustomers() {
               id="fg-customer-search"
               className="pl-9"
               maxLength={100}
-              placeholder="Member number, name, email or Telegram"
+              placeholder="FG- order, Telegram ID, @username, email, member"
               value={search.q ?? ""}
               onChange={(event) =>
                 navigate({
@@ -150,8 +151,8 @@ function FoxgenCustomers() {
                 <TableHead>Telegram</TableHead>
                 <TableHead>Wallet</TableHead>
                 <TableHead>Orders</TableHead>
-                <TableHead>Completed spending</TableHead>
-                <TableHead>Last activity</TableHead>
+                <TableHead>Channel</TableHead>
+                <TableHead>Last order</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -207,9 +208,11 @@ function FoxgenCustomers() {
                         <span className="figure">{customer.orderCount}</span>
                       )}
                     </TableCell>
-                    <TableCell className="figure min-w-28">{customer.spending}</TableCell>
+                    <TableCell>
+                      <FoxgenSource data={data} />
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">
-                      {foxgenDate(customer.lastActivity)}
+                      {foxgenDate(customer.lastOrder)}
                     </TableCell>
                   </TableRow>
                 );

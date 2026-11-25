@@ -54,6 +54,9 @@ import {
   visibleStoreFields,
 } from "@/lib/foxgen-presentation";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ApprovalCountdown } from "@/components/crm/ApprovalCountdown";
+import { FoxgenDeliveryForm } from "@/components/crm/FoxgenDeliveryForm";
+import { FoxgenCustomerActions } from "@/components/crm/FoxgenCustomerActions";
 
 export const Route = createFileRoute("/_authenticated/foxgen-orders/$id")({
   loader: ({ context, params }) =>
@@ -95,6 +98,7 @@ function FoxgenDetailError() {
 }
 const successMessages: Record<FoxgenAction["action"], string> = {
   approve: "Payment approved",
+  approve_and_deliver: "Order approved and delivered",
   reject: "Order rejected and customer notified",
   add_fulfillment: "Delivery material saved",
   deliver_email: "Delivered to the customer by email",
@@ -232,6 +236,7 @@ function FoxgenDetail() {
       <div className="mb-6 flex flex-wrap gap-2">
         <FoxgenStatus status={o.status} />
         <FoxgenSource data={d} />
+        <ApprovalCountdown order={o} />
         <DeliveryCountdown
           status={o.status}
           confirmedAt={d["confirmed_at"]}
@@ -268,17 +273,22 @@ function FoxgenDetail() {
           </Label>
         </div>
       )}
+      <FoxgenDeliveryForm
+        key={id}
+        order={o}
+        verified={verified || !["under_review", "payment_submitted"].includes(o.status)}
+        onDelivered={() => {
+          setOverlay({
+            version: source.source_updated_at,
+            status: "delivered",
+            data: { ...d },
+            message: "Store confirmed approval and delivery",
+          });
+        }}
+      />
       <div className="mb-6 flex flex-wrap gap-3">
         {["under_review", "payment_submitted"].includes(o.status) && (
           <>
-            <Button
-              variant="success"
-              disabled={!!busy || !verified || !can("approve")}
-              onClick={() => run({ action: "approve", order_id: id })}
-            >
-              {icon("approve", <Check />)}
-              {busy === "approve" ? "Approving payment…" : "Approve payment"}
-            </Button>
             <Button
               variant="outline"
               disabled={!!busy || !can("reject")}
@@ -459,6 +469,14 @@ function FoxgenDetail() {
           </dl>
         )}
       </section>
+      {customerId && (
+        <FoxgenCustomerActions
+          key={customerId}
+          customerId={customerId}
+          orderId={id}
+          data={o.data}
+        />
+      )}
       <FoxgenOrderActivity id={id} order={source} />
       <details className="mt-5 border-t pt-4">
         <summary className="cursor-pointer text-sm font-medium">Imported order fields</summary>

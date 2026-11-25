@@ -33,6 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import { FoxgenBrand } from "./FoxgenBrand";
 import { GlobalSearch } from "./GlobalSearch";
+import { FoxgenOrderAlerts } from "./FoxgenOrderAlerts";
 
 const NAV = [
   { label: "Overview", items: [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] },
@@ -196,6 +197,7 @@ export function AppShell({ children, email }: { children: ReactNode; email: stri
             </nav>
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <FoxgenOrderAlerts />
             <GlobalSearch />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

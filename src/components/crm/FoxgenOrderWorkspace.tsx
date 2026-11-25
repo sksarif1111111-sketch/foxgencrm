@@ -17,7 +17,8 @@ import { StatCard } from "./StatCard";
 import { FoxgenStatus, FoxgenSource } from "./FoxgenStatus";
 import { DeliveryCountdown } from "./DeliveryCountdown";
 import { foxgenWorkspaceOptions } from "@/lib/foxgen-queries";
-import { workspaceOrders } from "@/lib/foxgen-workspace";
+import { approvalClock, workspaceOrders } from "@/lib/foxgen-workspace";
+import { ApprovalCountdown } from "./ApprovalCountdown";
 import { marketplaceData } from "@/lib/foxgen-marketplace";
 import { moneyLabel, paymentGroup, PAYMENT_GROUPS } from "@/lib/foxgen-presentation";
 import { foxgenDate } from "./FoxgenCustomersShared";
@@ -125,7 +126,8 @@ export function FoxgenOrderWorkspace() {
           <Tabs value={tab} onValueChange={setTab} className="min-w-0 overflow-x-auto">
             <TabsList className="justify-start">
               <TabsTrigger value="review">
-                Payment review <span className="ml-1 text-primary">{queue.review.length}</span>
+                Waiting for approval{" "}
+                <span className="ml-1 text-primary">{queue.review.length}</span>
               </TabsTrigger>
               <TabsTrigger value="delivery">Urgent delivery</TabsTrigger>
               <TabsTrigger value="recent">Recently updated</TabsTrigger>
@@ -172,7 +174,14 @@ export function FoxgenOrderWorkspace() {
                 const payment = paymentGroup(o);
                 const created = d["created_at"] ?? d["order_created_at"];
                 return (
-                  <TableRow key={o.external_id}>
+                  <TableRow
+                    key={o.external_id}
+                    className={
+                      approvalClock(o, now)?.overdue
+                        ? "bg-destructive/10 hover:bg-destructive/15"
+                        : ""
+                    }
+                  >
                     <TableCell className="min-w-40 max-w-64">
                       <Link
                         to="/foxgen-orders/$id"
@@ -215,6 +224,7 @@ export function FoxgenOrderWorkspace() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                       <p>{foxgenDate(typeof created === "string" ? created : null)}</p>
+                      <ApprovalCountdown order={o} />
                       {typeof d["confirmed_at"] === "string" && (
                         <p>Paid {foxgenDate(d["confirmed_at"])}</p>
                       )}

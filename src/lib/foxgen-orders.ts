@@ -31,7 +31,58 @@ export const FoxgenSearch = z.object({
   page: z.number().int().min(0).optional().catch(undefined),
 });
 export type FoxgenFilters = z.infer<typeof FoxgenSearch>;
+export const DeliveryFieldsSchema = z
+  .object({
+    account_email: z.string().trim().max(320).optional(),
+    account_username: z.string().trim().max(200).optional(),
+    account_number: z.string().trim().max(200).optional(),
+    password: z.string().max(500).optional(),
+    link: z.string().trim().max(2000).optional(),
+    notes: z.string().max(2000).optional(),
+  })
+  .strict()
+  .refine(
+    (fields) => Object.values(fields).some((value) => value?.trim()),
+    "Enter delivery details.",
+  );
+export type DeliveryFields = z.infer<typeof DeliveryFieldsSchema>;
+export const CustomerActionSchema = z.discriminatedUnion("action", [
+  z
+    .object({
+      action: z.literal("message_customer"),
+      customer_id: z.string().uuid(),
+      order_id: z.string().uuid().optional(),
+      message: z.string().trim().min(1).max(2000),
+      channels: z
+        .array(z.enum(["telegram", "email", "account"]))
+        .min(1)
+        .max(3),
+      request_id: z.string().uuid(),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("adjust_wallet"),
+      customer_id: z.string().uuid(),
+      amount_usd: z
+        .number()
+        .finite()
+        .refine((value) => value !== 0 && Math.abs(value) <= 100000),
+      reason: z.string().trim().min(3).max(500),
+      request_id: z.string().uuid(),
+    })
+    .strict(),
+]);
+export type CustomerAction = z.infer<typeof CustomerActionSchema>;
 export const ActionSchema = z.discriminatedUnion("action", [
+  z
+    .object({
+      action: z.literal("approve_and_deliver"),
+      order_id: z.string().uuid(),
+      fields: DeliveryFieldsSchema,
+      request_id: z.string().uuid(),
+    })
+    .strict(),
   z.object({ action: z.literal("approve"), order_id: z.string().min(1).max(200) }).strict(),
   z
     .object({
@@ -124,6 +175,14 @@ export function hasEmails(data: Record<string, unknown>) {
 export function allowedAction(action: FoxgenAction["action"], order: FoxgenOrder): boolean {
   const d = marketplaceData(order.data);
   const status = canonicalStatus(order.status);
+  if (action === "approve_and_deliver")
+    return [
+      "under_review",
+      "payment_submitted",
+      "awaiting_email",
+      "payment_confirmed",
+      "awaiting_fulfillment",
+    ].includes(status);
   if (action === "approve" || action === "reject")
     return ["under_review", "payment_submitted"].includes(status);
   if (action === "request_info")
