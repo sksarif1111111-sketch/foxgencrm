@@ -3,7 +3,7 @@
 - [x] Add confirmed Store messaging, wallet adjustments and approve-and-deliver forms without persisting credentials.
 - [x] Add oldest-first proof review countdowns and in-session new-order alerts.
 - [x] Verify 98 tests, real owner order/Telegram ID/username/email/member search, confirmation/cancel flows, private top-up image/zoom, signed-out proof denial and layouts at 390, 430, 768, 1280 and 1600px.
-- [ ] Verify a real outgoing customer message (waiting for the owner's answer identifying a permitted test recipient).
+- [x] Verify a real outgoing customer message on test account M-000009 (Telegram ID 8793093292, Telegram + Account only; Store returned sent for both, durable receipt saved and displayed in Messages sent after reload).
 - [ ] Verify live combined delivery and wallet adjustment (blocked: no authorized test delivery or financial change; safeguards and Store payloads tested without side effects).
 - [ ] Backfill existing review-order evidence/timestamp in Store (blocked: FG-001018 source has no proof_submitted_at and its private proof endpoint returns 404; no timestamp or evidence is invented in CRM).
 

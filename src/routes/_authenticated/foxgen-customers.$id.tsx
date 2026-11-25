@@ -400,6 +400,17 @@ function FoxgenCustomerProfile() {
                   </p>
                 </li>
               ))}
+            {messages.map((receipt) => (
+              <li key={receipt.request_id} className="py-3">
+                <p className="whitespace-pre-wrap break-words text-sm">{receipt.message}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {foxgenDate(receipt.created_at)} ·{" "}
+                  {Object.entries(orderData(receipt.channels))
+                    .map(([channel, status]) => `${channel}: ${text(status).replaceAll("_", " ")}`)
+                    .join(" · ")}
+                </p>
+              </li>
+            ))}
             {importedMessages.map((value, index) => {
               const message =
                 value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -427,19 +438,6 @@ function FoxgenCustomerProfile() {
                   <dt className="text-xs text-muted-foreground">{label.replaceAll("_", " ")}</dt>
                   <dd className="mt-1 break-all text-sm">{text(value)}</dd>
                 </div>
-              ))}
-              {messages.map((receipt) => (
-                <li key={receipt.request_id} className="py-3">
-                  <p className="whitespace-pre-wrap break-words text-sm">{receipt.message}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {foxgenDate(receipt.created_at)} ·{" "}
-                    {Object.entries(orderData(receipt.channels))
-                      .map(
-                        ([channel, status]) => `${channel}: ${text(status).replaceAll("_", " ")}`,
-                      )
-                      .join(" · ")}
-                  </p>
-                </li>
               ))}
             </dl>
           </details>
