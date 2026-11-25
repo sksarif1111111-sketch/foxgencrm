@@ -183,3 +183,14 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* FOXGEN: fully hide the injected Lovable branding widget (badge text + close X). */
+#lovable-badge {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+#lovable-badge * {
+  display: none !important;
+  visibility: hidden !important;
+}
