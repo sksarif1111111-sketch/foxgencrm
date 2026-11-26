@@ -10,6 +10,7 @@ import {
   type FoxgenOrder,
 } from "./foxgen-orders";
 import { callFoxgenAction } from "./foxgen-actions.server";
+import { getStoreBaseUrl } from "./store-url.server";
 import {
   customerOrderCounts,
   FoxgenCustomerSearch,
@@ -464,6 +465,7 @@ export const getFoxgenConnection = createServerFn({ method: "GET" })
       ...connectionSummary(rows),
       integration: integration.data,
       actionsConfigured: Boolean(process.env["SHOP_CRM_ACTION_KEY"]),
+      storeUrl: getStoreBaseUrl(),
       checkedAt: new Date().toISOString(),
     };
   });

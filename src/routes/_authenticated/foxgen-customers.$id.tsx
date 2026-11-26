@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft, MessageCircle, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/crm/PageHeader";
 import {
   FoxgenCustomersError,
@@ -84,7 +84,7 @@ function FoxgenCustomerProfile() {
         : null,
   );
   const memberId = memberNumber(customer);
-  const chatUrl = telegramChatUrl(data["telegram_username"]);
+  const chatUrl = telegramChatUrl(data["telegram_username"], data["telegram_user_id"]);
   const spentSnapshot = data["total_spent"];
   const spent =
     spentSnapshot && typeof spentSnapshot === "object" && !Array.isArray(spentSnapshot)
@@ -200,7 +200,13 @@ function FoxgenCustomerProfile() {
       </div>
       {chatUrl && (
         <Button asChild variant="outline" size="sm" className="mb-4">
-          <a href={chatUrl} target="_blank" rel="noreferrer">
+          <a
+            href={chatUrl}
+            {...(chatUrl.startsWith("https://")
+              ? { target: "_blank", rel: "noreferrer" }
+              : {})}
+          >
+            <MessageCircle className="size-4" />
             Open Telegram chat
           </a>
         </Button>

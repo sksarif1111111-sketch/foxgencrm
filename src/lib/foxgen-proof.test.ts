@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchStoreProof } from "./foxgen-proof.server";
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 describe("private payment evidence", () => {
   it("uses only the fixed Store endpoint with hidden server authorization", async () => {
     const f = vi
@@ -44,5 +47,18 @@ describe("private payment evidence", () => {
     const result = await fetchStoreProof("id", "test");
     expect(result.ok).toBe(false);
     expect(JSON.stringify(result)).not.toContain("secret detail");
+  });
+  it("uses STORE_BASE_URL when set", async () => {
+    vi.stubEnv("STORE_BASE_URL", "https://custom-store.example.com/");
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(new Uint8Array([1, 2]), { headers: { "Content-Type": "image/png" } }),
+      );
+    vi.stubGlobal("fetch", fetcher);
+    expect((await fetchStoreProof("order-1", "test-key")).ok).toBe(true);
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      "https://custom-store.example.com/api/public/shop/v1/payment-proof/order-1",
+    );
   });
 });

@@ -137,7 +137,7 @@ function StorePage() {
     <>
       <PageHeader
         title="Store Connection"
-        description={STORE_URL}
+        description={d?.store_url || STORE_URL}
         actions={
           <Button
             variant="outline"

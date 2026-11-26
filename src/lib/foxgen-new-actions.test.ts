@@ -76,8 +76,12 @@ describe("new Store action validation", () => {
     expect(snapshotNumber({ credit_balance: 17 }, "credit_balance")).toBe(17);
     expect(snapshotNumber({ wallet_balance: 42 }, "credit_balance")).toBeNull();
   });
-  it("opens only a validated Telegram username chat", () => {
+  it("opens a validated Telegram username chat or falls back to tg://user?id", () => {
     expect(telegramChatUrl("@foxgen_user")).toBe("https://t.me/foxgen_user");
+    expect(telegramChatUrl("@foxgen_user", "8793093292")).toBe("https://t.me/foxgen_user");
+    expect(telegramChatUrl(null, 8793093292)).toBe("tg://user?id=8793093292");
+    expect(telegramChatUrl("", "8793093292")).toBe("tg://user?id=8793093292");
     expect(telegramChatUrl("evil.example/path")).toBeNull();
+    expect(telegramChatUrl(null, "not-an-id")).toBeNull();
   });
 });

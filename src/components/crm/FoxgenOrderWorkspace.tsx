@@ -178,7 +178,7 @@ export function FoxgenOrderWorkspace() {
                     key={o.external_id}
                     className={
                       approvalClock(o, now)?.overdue
-                        ? "bg-destructive/10 hover:bg-destructive/15"
+                        ? "border-l-4 border-l-destructive bg-destructive/10 hover:bg-destructive/15"
                         : ""
                     }
                   >

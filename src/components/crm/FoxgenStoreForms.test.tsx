@@ -68,6 +68,27 @@ describe("Store form action safeguards", () => {
     });
     expect(mocks.invalidate).toHaveBeenCalledWith({ queryKey: ["foxgen"] });
     expect(screen.queryByLabelText("Password")).toBeNull();
+    expect(screen.getByText("Telegram: sent")).toBeTruthy();
+  });
+  it("shows per-channel results and keeps the order in Waiting for approval when nothing was sent", async () => {
+    mocks.operate.mockResolvedValue({
+      ok: false,
+      code: "NOT_DELIVERED",
+      error: "Delivery failed (Telegram: bot blocked)",
+      delivery: { telegram: "bot_blocked" },
+    });
+    const delivered = vi.fn();
+    render(<FoxgenDeliveryForm order={order} verified onDelivered={delivered} />);
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "temporary-test-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Approve & Deliver" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm & Deliver" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Waiting for approval");
+    expect(screen.getByText("Telegram: bot blocked")).toBeTruthy();
+    expect(delivered).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Password")).toHaveValue("temporary-test-password");
   });
   it("blocks delivery until the owner verifies payment", () => {
     render(<FoxgenDeliveryForm order={order} verified={false} onDelivered={vi.fn()} />);

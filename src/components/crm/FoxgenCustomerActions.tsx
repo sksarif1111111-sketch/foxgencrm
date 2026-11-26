@@ -58,6 +58,25 @@ export function FoxgenCustomerActions({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<string | null>(null);
+  const info = orderData(data);
+  const customerLabel = String(
+    info["customer_name"] ?? info["name"] ?? info["member_number"] ?? customerId,
+  );
+  const channelDestination = (channel: "telegram" | "email" | "account") => {
+    if (channel === "telegram") {
+      const handle = info["telegram_username"]
+        ? `@${String(info["telegram_username"]).replace(/^@/, "")}`
+        : info["telegram_user_id"]
+          ? `ID ${String(info["telegram_user_id"])}`
+          : null;
+      return handle ? `Telegram (${handle})` : "Telegram";
+    }
+    if (channel === "email") {
+      const mail = info["email"] ?? info["customer_email"];
+      return typeof mail === "string" && mail.trim() ? `Email (${mail.trim()})` : "Email";
+    }
+    return "Store account";
+  };
   function prepare(input: unknown) {
     const parsed = CustomerActionSchema.safeParse(input);
     if (!parsed.success) {
@@ -269,10 +288,34 @@ export function FoxgenCustomerActions({
             </DialogTitle>
             <DialogDescription>
               {pending?.action === "adjust_wallet"
-                ? `Apply ${pending.amount_usd > 0 ? "+" : ""}${pending.amount_usd.toFixed(2)} USD to this customer's wallet?`
-                : `Send to ${pending?.action === "message_customer" ? pending.channels.join(" + ") : ""}?`}
+                ? `This will immediately ${pending.amount_usd > 0 ? "add" : "deduct"} $${Math.abs(pending.amount_usd).toFixed(2)} USD ${pending.amount_usd > 0 ? "to" : "from"} ${customerLabel}'s Store wallet.`
+                : `This will send the message below to ${customerLabel} immediately.`}
             </DialogDescription>
           </DialogHeader>
+          <dl className="space-y-2 rounded-md border bg-muted/40 p-3 text-sm">
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">Customer</dt>
+              <dd className="font-semibold text-right break-all">{customerLabel}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">Where it goes</dt>
+              <dd className="font-semibold text-right break-words">
+                {pending?.action === "adjust_wallet"
+                  ? "Store wallet balance"
+                  : pending?.action === "message_customer"
+                    ? pending.channels.map(channelDestination).join(" · ")
+                    : ""}
+              </dd>
+            </div>
+            {pending?.action === "adjust_wallet" && (
+              <div className="flex justify-between gap-3">
+                <dt className="shrink-0 text-muted-foreground">Change</dt>
+                <dd className="figure font-semibold text-right">
+                  {pending.amount_usd > 0 ? "+" : ""}${pending.amount_usd.toFixed(2)} USD
+                </dd>
+              </div>
+            )}
+          </dl>
           <p className="max-h-48 overflow-auto whitespace-pre-wrap break-words text-sm">
             {pending?.action === "adjust_wallet" ? pending.reason : pending?.message}
           </p>

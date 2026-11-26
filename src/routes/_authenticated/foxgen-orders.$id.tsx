@@ -28,7 +28,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { foxgenDetailOptions } from "@/lib/foxgen-queries";
 import { operateFoxgenOrder } from "@/lib/foxgen.functions";
 import {
@@ -121,6 +127,7 @@ function FoxgenDetail() {
   const [form, setForm] = useState<"reject" | "request_info" | "add_fulfillment" | null>(null);
   const [content, setContent] = useState("");
   const [kind, setKind] = useState<"link" | "code" | "instructions">("link");
+  const [confirmReject, setConfirmReject] = useState<string | null>(null);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [verified, setVerified] = useState(false);
   const source = q.data;
@@ -172,6 +179,7 @@ function FoxgenDetail() {
       setOverlay({ version: source.source_updated_at, status, data: next, message });
       toast.success(message);
       setForm(null);
+      setConfirmReject(null);
       setContent("");
       await qc.invalidateQueries({ queryKey: ["foxgen"] });
     } catch {
@@ -199,6 +207,15 @@ function FoxgenDetail() {
       ? null
       : new Date(confirmed + slaMinutes(d["shop_delivery_sla_minutes"]) * 60000).toLocaleString();
   const payment = paymentGroup(o);
+  const rejectDestination = isBot(d)
+    ? d["telegram_username"]
+      ? `Telegram chat (@${String(d["telegram_username"]).replace(/^@/, "")})`
+      : d["telegram_user_id"]
+        ? `Telegram chat (ID ${String(d["telegram_user_id"])})`
+        : "Telegram chat"
+    : typeof d["customer_email"] === "string" && d["customer_email"].trim()
+      ? `Email (${d["customer_email"].trim()}) + Store account`
+      : "Email + Store account";
   const date = (value: unknown) => {
     const at = timestamp(value);
     return at === null ? null : new Date(at).toLocaleString();
@@ -487,7 +504,7 @@ function FoxgenDetail() {
         </dl>
       </details>
       <Dialog
-        open={!!form}
+        open={!!form && !confirmReject}
         onOpenChange={(value) => {
           if (!value && !busy) {
             setForm(null);
@@ -518,6 +535,11 @@ function FoxgenDetail() {
               const parsed = ActionSchema.safeParse(input);
               if (!parsed.success) {
                 setError("Enter the required details before sending.");
+                return;
+              }
+              if (parsed.data.action === "reject") {
+                setError(null);
+                setConfirmReject(parsed.data.reason);
                 return;
               }
               run(parsed.data);
@@ -567,12 +589,73 @@ function FoxgenDetail() {
               {busy
                 ? "Sending to store…"
                 : form === "reject"
-                  ? "Reject and notify"
+                  ? "Review rejection"
                   : form === "add_fulfillment"
                     ? "Save delivery material"
                     : "Send request"}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={!!confirmReject}
+        onOpenChange={(value) => {
+          if (!value && !busy) {
+            setConfirmReject(null);
+            setError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm order rejection</DialogTitle>
+            <DialogDescription>
+              This will reject payment for this order, mark it as rejected, and notify the customer
+              with the reason below.
+            </DialogDescription>
+          </DialogHeader>
+          <dl className="space-y-2 rounded-md border bg-muted/40 p-3 text-sm">
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">Order</dt>
+              <dd className="font-semibold text-right break-all">
+                {String(d["order_number"] ?? o.external_id)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">Where it goes</dt>
+              <dd className="font-semibold text-right break-words">{rejectDestination}</dd>
+            </div>
+          </dl>
+          <p className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md border p-3 text-sm">
+            {confirmReject}
+          </p>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              disabled={!!busy}
+              onClick={() => {
+                setConfirmReject(null);
+                setError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!!busy || !confirmReject}
+              onClick={() => {
+                if (confirmReject) run({ action: "reject", order_id: id, reason: confirmReject });
+              }}
+            >
+              {busy === "reject" ? <LoaderCircle className="animate-spin" /> : <X />}
+              {busy === "reject" ? "Rejecting…" : "Confirm & Reject"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

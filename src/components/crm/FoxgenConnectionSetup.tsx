@@ -5,9 +5,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { foxgenConnectionOptions } from "@/lib/foxgen-queries";
+import { STORE_URL } from "@/lib/store-sync";
 
 const syncUrl = "https://foxgencrm.lovable.app/api/public/store/sync";
-const setup = `Connect FOXGEN AI STORE to the existing FoxGen CRM, preserving the Store's own checkout, wallet ledger, inventory and Telegram bot.
+const buildSetup = (storeUrl: string) => `Connect FOXGEN AI STORE to the existing FoxGen CRM, preserving the Store's own checkout, wallet ledger, inventory and Telegram bot.
 CRM sync URL: ${syncUrl}
 Use the owner's existing inbound sync key as server-only FOXGEN_CRM_API_KEY. Never send the login password. Do not rotate the key automatically.
 POST JSON { records: [...] } with Authorization: Bearer <sync key>; maximum 100 records and 256 KB per batch.
@@ -18,7 +19,7 @@ Send all website accounts and Telegram members as customers, with member_number,
 Orders: send channel (bot/website), order_number, customer_name, payment_method_name, payment_status, payment_reference, items, confirmed_at ONLY after verified payment, delivered_at ONLY after real delivery, shop_delivery_sla_minutes (30 unless configured), has_fulfillment and authorized delivery destinations. Send every payment/review/processing/delayed/delivered/cancelled/refunded transition with a newer source timestamp.
 Payments/refunds related to an order must include data.order_external_id matching the order external_id exactly. Wallet deposits must stay distinct and must not be presented as order payments. Never send raw account credentials, secret keys, screenshots or publicly accessible private-proof URLs. Proofs stay in private Store storage. Include has_payment_proof and proof_submitted_at in order snapshots; do not send Telegram file URLs or bot tokens.
 Enable CRM private proof access at GET /api/public/shop/v1/payment-proof/$id. Verify Authorization: Bearer SHOP_CRM_ACTION_KEY inside the handler before privileged reads. Validate the order UUID, look up that order's own payment_evidence_url, fetch telegram-file evidence server-side with the Store's existing bot (never re-register its webhook), and return only image/jpeg, image/png, image/webp or application/pdf bytes, maximum 5 MB, with Cache-Control: private, no-store and X-Content-Type-Options: nosniff. Do not accept arbitrary download URLs or return the bot token/file URL. For private storage use its authorized download API. Return 404 for absent proof and 401 for invalid authorization. The CRM already has an owner-only viewer calling this exact endpoint server-to-server.
-The CRM uses server-only SHOP_CRM_ACTION_KEY to call https://foxgenofficial.lovable.app/api/public/shop/v1/actions. Keep the existing approve, reject, request_info, add_fulfillment, deliver_email, deliver_telegram and upsert_product contracts. Verify authorization, current order state and duplicate actions inside the Store before financial or delivery effects; acknowledgement must follow durable commit and trigger a new CRM sync.
+The CRM uses server-only SHOP_CRM_ACTION_KEY to call ${storeUrl}/api/public/shop/v1/actions. Keep the existing approve, reject, request_info, add_fulfillment, deliver_email, deliver_telegram and upsert_product contracts. Verify authorization, current order state and duplicate actions inside the Store before financial or delivery effects; acknowledgement must follow durable commit and trigger a new CRM sync.
 Catalogue upsert_product pushes remain unpublished until Store owner review. Never route imported orders through CRM supplier fulfillment.
 Verify one real Store order appears under CRM FoxGen Store Orders, links to the right member, changes after payment review and reads back the real delivery timestamp. Do not claim live delivery verified without an authorized real test.`;
 
@@ -27,7 +28,7 @@ export function FoxgenConnectionSetup() {
   const data = query.data;
   async function copy() {
     try {
-      await navigator.clipboard.writeText(setup);
+      await navigator.clipboard.writeText(buildSetup(data?.storeUrl ?? STORE_URL));
       toast.success("Store connection instructions copied");
     } catch {
       toast.error("Could not copy. Try again from your browser.");

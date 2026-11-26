@@ -1,3 +1,5 @@
+import { getStoreBaseUrl } from "./store-url.server";
+
 export async function fetchStoreProof(
   orderId: string,
   key: string,
@@ -5,7 +7,7 @@ export async function fetchStoreProof(
 ) {
   const resource = kind === "topup" ? "topup-proof" : "payment-proof";
   const response = await fetch(
-    `https://foxgenofficial.lovable.app/api/public/shop/v1/${resource}/${encodeURIComponent(orderId)}`,
+    `${getStoreBaseUrl()}/api/public/shop/v1/${resource}/${encodeURIComponent(orderId)}`,
     {
       headers: {
         Authorization: `Bearer ${key}`,

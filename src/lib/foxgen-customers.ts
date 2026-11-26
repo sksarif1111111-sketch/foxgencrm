@@ -17,10 +17,19 @@ export function snapshotNumber(data: FoxgenOrder["data"], key: string): number |
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
-export function telegramChatUrl(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const username = value.replace(/^@/, "");
-  return /^[a-zA-Z0-9_]{5,32}$/.test(username) ? `https://t.me/${username}` : null;
+export function telegramChatUrl(usernameValue: unknown, telegramIdValue?: unknown): string | null {
+  if (typeof usernameValue === "string") {
+    const username = usernameValue.trim().replace(/^@/, "");
+    if (/^[a-zA-Z0-9_]{5,32}$/.test(username)) return `https://t.me/${username}`;
+  }
+  const idText =
+    typeof telegramIdValue === "number" && Number.isSafeInteger(telegramIdValue)
+      ? String(telegramIdValue)
+      : typeof telegramIdValue === "string"
+        ? telegramIdValue.trim()
+        : "";
+  if (/^[1-9]\d{4,19}$/.test(idText)) return `tg://user?id=${idText}`;
+  return null;
 }
 
 export function memberNumber(customer: Pick<FoxgenOrder, "external_id" | "data">): string {

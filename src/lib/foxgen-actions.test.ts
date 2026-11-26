@@ -119,4 +119,88 @@ describe("FoxGen Store action boundary", () => {
     );
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+  it("maps 4xx Store JSON error codes and real messages accurately", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json(
+          { code: "INSUFFICIENT_BALANCE", message: "Not enough balance" },
+          { status: 400 },
+        ),
+      ),
+    );
+    expect(
+      await callFoxgenAction({
+        action: "adjust_wallet",
+        customer_id: "member-id",
+        amount_usd: -50,
+        reason: "Deduction",
+        request_id: "req-1",
+      }),
+    ).toMatchObject({ ok: false, code: "INSUFFICIENT_BALANCE", error: "Wallet balance is too low" });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json(
+          {
+            code: "DELIVERY_FAILED",
+            delivery: { telegram: "bot_blocked", email: "no_email" },
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+    expect(await callFoxgenAction({ action: "approve", order_id: "FG-001234" })).toMatchObject({
+      ok: false,
+      code: "DELIVERY_FAILED",
+      delivery: { telegram: "bot_blocked", email: "no_email" },
+      error: "Delivery failed (Telegram: bot blocked · Email: no email)",
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({ code: "REQUEST_IN_PROGRESS" }, { status: 409 }),
+      ),
+    );
+    expect(await callFoxgenAction({ action: "approve", order_id: "FG-001234" })).toMatchObject({
+      ok: false,
+      code: "REQUEST_IN_PROGRESS",
+      error: "Still processing, wait a moment",
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({ code: "ORDER_STATE_CONFLICT" }, { status: 409 }),
+      ),
+    );
+    expect(await callFoxgenAction({ action: "approve", order_id: "FG-001234" })).toMatchObject({
+      ok: false,
+      code: "ORDER_STATE_CONFLICT",
+      error: "The store order has changed. Refresh it before trying again.",
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({ code: "DUPLICATE_REQUEST", message: "Already processed" }, { status: 409 }),
+      ),
+    );
+    const otherConflict = await callFoxgenAction({ action: "approve", order_id: "FG-001234" });
+    expect(otherConflict).toMatchObject({ ok: false, error: "Already processed" });
+    expect(otherConflict.ok ? "" : otherConflict.error.toLowerCase()).not.toContain(
+      "order has changed",
+    );
+  });
+  it("uses STORE_BASE_URL when configured and defaults to foxgenofficial.lovable.app", async () => {
+    vi.stubEnv("STORE_BASE_URL", "https://staging-store.example.com/");
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetcher);
+    expect((await callFoxgenAction({ action: "approve", order_id: "FG-001234" })).ok).toBe(true);
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      "https://staging-store.example.com/api/public/shop/v1/actions",
+    );
+  });
 });

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, LoaderCircle } from "lucide-react";
+import { AlertTriangle, Check, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,19 @@ const labels = {
   link: "Link (Drive/APK/any)",
   notes: "Notes",
 } as const;
+const CHANNEL_NAMES: Record<string, string> = {
+  telegram: "Telegram",
+  email: "Email",
+  account: "Store account",
+};
+const SENT_STATES = new Set(["sent", "delivered", "ok", "visible_in_my_orders"]);
+function isChannelSent(status: string) {
+  return SENT_STATES.has(status.toLowerCase());
+}
+function formatChannelStatus(channel: string, status: string) {
+  return `${CHANNEL_NAMES[channel] ?? channel}: ${status.replaceAll("_", " ")}`;
+}
+
 export function FoxgenDeliveryForm({
   order,
   verified,
@@ -48,12 +62,45 @@ export function FoxgenDeliveryForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
-  const destination = isBot(orderData(order.data)) ? "Telegram chat" : "Email + Store account";
+  const [deliveryResults, setDeliveryResults] = useState<Record<string, string> | null>(null);
+  const [failedWarning, setFailedWarning] = useState<{
+    message: string;
+    outcomes: Record<string, string>;
+  } | null>(null);
+  const data = orderData(order.data);
+  const botOrder = isBot(data);
+  const destination = botOrder ? "Telegram chat" : "Email + Store account";
+  const recipientHint = botOrder
+    ? data["telegram_username"]
+      ? `@${String(data["telegram_username"]).replace(/^@/, "")}`
+      : data["telegram_user_id"]
+        ? `Telegram ID ${String(data["telegram_user_id"])}`
+        : null
+    : typeof data["customer_email"] === "string" && data["customer_email"].trim()
+      ? data["customer_email"].trim()
+      : null;
+  const filledFieldLabels = Object.entries(labels)
+    .filter(([key]) => Boolean(fields[key as keyof DeliveryFields]?.trim()))
+    .map(([, label]) => label);
   if (sent)
     return (
-      <p role="status" className="mb-5 border-l-2 border-success py-3 pl-4 text-sm">
-        Store confirmed approval and delivery. Waiting for its latest order snapshot.
-      </p>
+      <div role="status" className="mb-5 space-y-2 rounded-lg border border-success/40 bg-success/10 p-4 text-sm">
+        <p className="font-semibold text-foreground">
+          Order approved and delivered · {destination}
+        </p>
+        {deliveryResults && Object.keys(deliveryResults).length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(deliveryResults).map(([channel, status]) => (
+              <Badge key={channel} variant={isChannelSent(status) ? "success" : "danger"}>
+                {formatChannelStatus(channel, status)}
+              </Badge>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Waiting for the Store's latest order snapshot.
+        </p>
+      </div>
     );
   if (!allowedAction("approve_and_deliver", order)) return null;
   async function send() {
@@ -73,22 +120,49 @@ export function FoxgenDeliveryForm({
     try {
       const result = await operate({ data: parsed.data });
       if (!result.ok) {
+        const failedOutcomes = result.delivery ?? result.channels ?? {};
+        if (result.code === "NOT_DELIVERED" || result.code === "DELIVERY_FAILED") {
+          setFailedWarning({
+            message:
+              "Nothing was sent to the customer. The order remains in Waiting for approval.",
+            outcomes: failedOutcomes,
+          });
+          setRequestId(null);
+          toast.error(result.error);
+          return;
+        }
         setError(result.error);
+        return;
+      }
+      const outcomes = result.delivery ?? result.channels ?? {};
+      const entries = Object.entries(outcomes);
+      const succeeded = entries.filter(([, state]) => isChannelSent(state));
+      const failed = entries.filter(([, state]) => !isChannelSent(state));
+      if (entries.length > 0 && succeeded.length === 0) {
+        setFailedWarning({
+          message:
+            "Nothing was sent to the customer. The order remains in Waiting for approval.",
+          outcomes,
+        });
+        setRequestId(null);
+        toast.error(
+          `Nothing was sent · ${failed.map(([channel, status]) => formatChannelStatus(channel, status)).join(" · ")}`,
+        );
         return;
       }
       // Credentials are never added to query data, storage, database rows or success overlays.
       setFields({});
       setRequestId(null);
+      setFailedWarning(null);
+      setDeliveryResults(entries.length ? outcomes : null);
       setSent(true);
       onDelivered();
-      const failed = Object.entries(result.delivery ?? {}).filter(
-        ([, state]) => !["sent", "visible_in_my_orders"].includes(state),
-      );
+      const summary = entries
+        .map(([channel, status]) => formatChannelStatus(channel, status))
+        .join(" · ");
       if (failed.length)
-        toast.warning(
-          `Store completed the order; ${failed.map(([channel, status]) => `${channel}: ${status.replaceAll("_", " ")}`).join(" · ")}`,
-        );
-      else toast.success(`Store confirmed delivery · ${destination}`);
+        toast.warning(`Order delivered with partial failures · ${summary}`);
+      else toast.success(summary ? `Delivered · ${summary}` : `Store confirmed delivery · ${destination}`);
       await qc.invalidateQueries({ queryKey: ["foxgen"] });
     } catch {
       setError("The response was interrupted. Check the Store before retrying the same request.");
@@ -101,7 +175,28 @@ export function FoxgenDeliveryForm({
       <h2 className="text-lg font-semibold">Approve & Deliver</h2>
       <p className="mt-1 mb-4 text-sm text-muted-foreground">
         Delivery destination: <span className="font-semibold text-foreground">{destination}</span>
+        {recipientHint ? ` (${recipientHint})` : ""}
       </p>
+      {failedWarning && (
+        <div
+          role="alert"
+          className="mb-4 space-y-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"
+        >
+          <p className="flex items-center gap-2 font-semibold">
+            <AlertTriangle className="size-4 shrink-0" />
+            {failedWarning.message}
+          </p>
+          {Object.keys(failedWarning.outcomes).length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(failedWarning.outcomes).map(([channel, status]) => (
+                <Badge key={channel} variant="danger">
+                  {formatChannelStatus(channel, status)}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <form
         autoComplete="off"
         className="space-y-4"
@@ -193,13 +288,29 @@ export function FoxgenDeliveryForm({
           <DialogHeader>
             <DialogTitle>Confirm approval and delivery</DialogTitle>
             <DialogDescription>
-              Approve this order and send the entered delivery details to {destination}? Confirm
-              only after checking the received payment.
+              This will approve the payment, mark the order as delivered, and send your entered
+              delivery details to the customer.
             </DialogDescription>
           </DialogHeader>
-          <p className="text-sm">
-            Order: {String(orderData(order.data)["order_number"] ?? order.external_id)}
-          </p>
+          <dl className="space-y-2 rounded-md border bg-muted/40 p-3 text-sm">
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">Order</dt>
+              <dd className="font-semibold text-right break-all">
+                {String(data["order_number"] ?? order.external_id)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">Where it goes</dt>
+              <dd className="font-semibold text-right break-all">
+                {destination}
+                {recipientHint ? ` (${recipientHint})` : ""}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">Fields included</dt>
+              <dd className="text-right">{filledFieldLabels.join(", ")}</dd>
+            </div>
+          </dl>
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}
